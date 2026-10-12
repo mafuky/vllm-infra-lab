@@ -7,6 +7,7 @@
 - 设计文档已获作者认可：`docs/superpowers/specs/2026-10-12-vllm-infra-lab-design.md`。
 - 实施计划已写好，等待作者评审并选择执行方式：`docs/superpowers/plans/2026-10-12-vllm-infra-lab.md`。动手前先通读这两份文档，技术决定以它们为准；计划中对规格书的两处调整（成本按单请求比较、网关切换靠超时）以计划为准。
 - 还没有任何代码。任务 1-6 在 Mac 上完成，任务 7-13 由作者在 GPU 机器上执行。
+- 项目已延长为两周。第二周设计文档待作者评审：`docs/superpowers/specs/2026-10-13-vllm-infra-lab-week2-design.md`（SGLang 对比与 Agent 式负载、冷启动、KEDA 扩缩容、vLLM 源码笔记）。第二周的实施计划在评审通过后另写。
 
 ## 已定决策（不要推翻，有异议先问作者）
 
@@ -18,7 +19,7 @@
 
 ## 约束
 
-- 周期一周，GPU 预算 100 元，累计超过 80 元时停止追加实验。
+- 周期两周。第一周 GPU 预算 100 元（超过 80 元停止可砍项）；两周合计不超过 150 元（超过 120 元停止所有可砍项）。
 - 开发机是 Mac（M4 Pro），只写配置、脚本、画图，不跑推理。
 - 本机 kubectl 当前 context `k3s-sandbox` 是 sandbox-operator 用的远程 CPU 集群，不是本项目的 GPU 集群，不要往上部署本项目。
 
