@@ -157,7 +157,7 @@ git add -A && git commit -m "chore: 搭建仓库骨架和镜像锁定检查"
 
 - [ ] **Step 1: `setup-node.sh`**
 
-依次：检查 root；`nvidia-smi` 可用并打印驱动版本，驱动 < 570 时提示改用 vLLM `v0.8.5.post1`；按 NVIDIA 官方 apt 源安装 `nvidia-container-toolkit=1.17.8-1`；把 `registries.yaml` 复制到 `/etc/rancher/k3s/registries.yaml`；用 rancher 国内镜像安装脚本装 k3s（`INSTALL_K3S_MIRROR=cn INSTALL_K3S_VERSION=v1.31.6+k3s1`）；创建 `/data/models`、`/data/results`、`/data/prometheus`（属主 65534）；把 kubeconfig 链到 `~/.kube/config`。
+优云智算虚机以 `ubuntu` 用户登录，脚本用 `sudo` 运行。依次：检查以 root 运行且 `SUDO_USER` 非空；`nvidia-smi` 可用并打印驱动版本（不可用时提示改选 Ubuntu-nvidia 系统镜像后退出），驱动 < 570 时提示改用 vLLM `v0.8.5.post1`；按 NVIDIA 官方 apt 源安装 `nvidia-container-toolkit=1.17.8-1`；把 `registries.yaml` 复制到 `/etc/rancher/k3s/registries.yaml`；用 rancher 国内镜像安装脚本装 k3s（`INSTALL_K3S_MIRROR=cn INSTALL_K3S_VERSION=v1.31.6+k3s1`）；创建 `/data/models`、`/data/results`、`/data/lab`（属主 `SUDO_USER`）和 `/data/prometheus`（属主 65534）；把 `/etc/rancher/k3s/k3s.yaml` 复制到 `/home/$SUDO_USER/.kube/config` 并改属主，之后 `ubuntu` 用户不加 sudo 也能用 kubectl。
 
 - [ ] **Step 2: `registries.yaml` 和 `runtimeclass.yaml`**
 
@@ -517,9 +517,9 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 ### Task 7: 第 1 天收尾——开通 GPU 实例
 
 - [ ] **Step 1:** Mac 上执行 `scripts/check-images.sh`。Expected: 所有镜像存在；不存在的按 Global Constraints 的规则替换，`make check` 后提交。
-- [ ] **Step 2:** 在优云智算开一台 RTX 4090 单卡实例，确认：能 `sudo -i` 拿到 root；`nvidia-smi` 正常；关机后是否计费（查文档或客服）；记下驱动版本。写入 `results/00-instance.md`。如果没有 root 或是容器实例，停止后续任务，回到规格书第 7 节的降级方案重新规划。
+- [ ] **Step 2:** 在优云智算开一台 RTX 4090 单卡实例，镜像选**系统镜像 Ubuntu-nvidia**（系统镜像是虚机；CUDA、PyTorch 等基础镜像和社区镜像是容器，不能装 Docker 和 k3s，不要选）。用 `ssh -p 22 ubuntu@<IP>` 登录，在 Mac 的 `~/.ssh/config` 里配好别名并写进 `.env` 的 `GPU_HOST`。确认：`sudo -i` 能拿到 root；`nvidia-smi` 正常并记下驱动版本；`df -h` 中可用空间不少于 80GB（三个模型约 26GB，加上 vLLM 等镜像）；关机后是否计费（查文档或客服）。写入 `results/00-instance.md`。如果登录用户是 root 且端口是 23，说明开成了容器实例，删除后按上面的要求重开。
 - [ ] **Step 3:** 查百炼是否提供 `qwen3-8b` 及其输入、输出单价，连同查询日期和价格页链接写入 `results/00-instance.md`。
-- [ ] **Step 4:** `rsync -av --exclude .venv --exclude .env ./ $GPU_HOST:/data/lab/`，并在服务器上手动建 `/data/lab/.env`。
+- [ ] **Step 4:** `ssh $GPU_HOST 'sudo mkdir -p /data/lab && sudo chown ubuntu:ubuntu /data/lab'`，然后 `rsync -av --exclude .venv --exclude .env ./ $GPU_HOST:/data/lab/`，并在服务器上手动建 `/data/lab/.env`。
 
 ### Task 8: 第 2 天——第 1 课
 

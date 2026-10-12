@@ -16,7 +16,7 @@
 
 ## 已定决策（不要推翻，有异议先问作者）
 
-- 一台优云智算 GPU 云服务器（RTX 4090 24GB）上跑单节点 k3s，四个命名空间：gpu、infer、gateway、monitoring。
+- 一台优云智算 GPU 云服务器（RTX 4090 24GB）上跑单节点 k3s，四个命名空间：gpu、infer、gateway、monitoring。实例必须用系统镜像 Ubuntu-nvidia 创建（虚机，`ubuntu` 用户、22 端口、可 sudo）；基础镜像和社区镜像创建的是容器（root、23 端口），装不了 k3s。
 - 主模型 Qwen3-8B BF16，对照 Qwen3-8B-AWQ；模型从 ModelScope 下载到宿主机 `/data/models`。
 - 监控直接写 Prometheus、Grafana 配置，不用 Prometheus Operator；告警不接通知渠道。
 - 网关只用 LiteLLM 自带的并发上限和 fallback，不写自定义路由；fallback 到百炼的同款模型。
