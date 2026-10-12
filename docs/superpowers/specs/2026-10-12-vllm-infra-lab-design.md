@@ -244,7 +244,7 @@ vllm-infra-lab/
 
 | 风险 | 对策 |
 | --- | --- |
-| 优云智算实例是容器，没有 root 或不能装 Docker | 已确认（2026-10-13，平台答复）：系统镜像（Ubuntu、Ubuntu-nvidia）创建的是虚机，以 `ubuntu` 用户、22 端口登录，可 sudo，支持装 Docker 和 k3s；基础镜像、社区镜像创建的是容器（root、23 端口），不适用。开实例时选 Ubuntu-nvidia 系统镜像 |
+| 优云智算实例是容器，没有 root 或不能装 Docker | 已确认（2026-10-13，平台答复）：系统镜像（Ubuntu、Ubuntu-nvidia）创建的是虚机，以 `ubuntu` 用户、22 端口登录，可 sudo，支持装 Docker 和 k3s；基础镜像、社区镜像创建的是容器（root、23 端口），不适用。开实例时选 Ubuntu 22.04 系统镜像。官方文档说系统镜像无预装环境，没有驱动时由安装脚本装 `nvidia-driver-570-server` |
 | 4090 缺货，或抢占式实例被回收 | 改用按量计费；每天结束前同步 `results/` 回 Mac |
 | 模型下载慢 | 使用 ModelScope；模型放数据盘，关机不删盘 |
 | vLLM 指标名与预期不符 | 第 3 天核对后再写查询语句 |
