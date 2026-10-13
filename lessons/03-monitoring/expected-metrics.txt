@@ -1,0 +1,13 @@
+vllm:num_requests_running
+vllm:num_requests_waiting
+vllm:kv_cache_usage_perc
+vllm:time_to_first_token_seconds
+vllm:inter_token_latency_seconds
+vllm:generation_tokens_total
+vllm:prompt_tokens_total
+vllm:prefix_cache_queries_total
+vllm:prefix_cache_hits_total
+DCGM_FI_DEV_GPU_UTIL
+DCGM_FI_DEV_FB_USED
+DCGM_FI_DEV_GPU_TEMP
+DCGM_FI_DEV_POWER_USAGE
