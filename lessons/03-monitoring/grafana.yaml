@@ -1,0 +1,106 @@
+# 第 3 课 · 看板
+#
+# 数据源和看板都是启动时自动加载的（provisioning），不用进界面点：
+#   数据源：uid prometheus，指向 http://prometheus.monitoring:9090
+#   看板：  dashboards/vllm-overview.json，生成的 ConfigMap grafana-dashboards 挂到 /var/lib/grafana/dashboards
+#
+# 看板从上到下就是排查顺序：用户体验 → 吞吐 → 容量 → 硬件 → 优化效果 → 网关。
+# 出问题时先看最上面的 TTFT 是否变慢，再一层层往下找原因。
+#
+# ── 怎么访问 ──────────────────────────────────────────────────
+#
+#   kubectl -n monitoring port-forward svc/grafana 3000      # 服务器上
+#   ssh -L 3000:localhost:3000 $GPU_HOST                     # Mac 上
+#
+# 浏览器打开 http://localhost:3000，用户名 admin，密码是 .env 里的 GRAFANA_ADMIN_PASSWORD。
+# Grafana 自己的数据放在 emptyDir，Pod 重建后界面上手动改的东西会丢；看板以 JSON 源文件为准。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning
+  namespace: monitoring
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus.monitoring:9090
+        isDefault: true
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: vllm-infra-lab
+        type: file
+        disableDeletion: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:13.2.3
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin
+                  key: admin-password
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/grafana
+            - name: provisioning
+              mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+              subPath: datasources.yaml
+            - name: provisioning
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml
+              subPath: dashboards.yaml
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: provisioning
+          configMap:
+            name: grafana-provisioning
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+            optional: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  selector:
+    app: grafana
+  ports:
+    - port: 3000
+      targetPort: 3000

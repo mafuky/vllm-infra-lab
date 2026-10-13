@@ -8,3 +8,5 @@ check:
 	$(PY) scripts/check_pins.py $(YAMLS)
 	kubeconform -strict -summary -kubernetes-version 1.35.0 -ignore-filename-pattern 'rules|dashboards|registries' lessons
 	shellcheck scripts/*.sh
+	promtool check rules lessons/03-monitoring/rules/vllm-alerts.yaml
+	promtool test rules lessons/03-monitoring/rules/vllm-alerts.test.yaml
