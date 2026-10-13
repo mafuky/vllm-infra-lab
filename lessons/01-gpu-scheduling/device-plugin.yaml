@@ -1,0 +1,80 @@
+# 第 1 课 · 让 K8s 认识 GPU
+#
+# 40 分钟。这一课结束时，节点上会多出一种资源 nvidia.com/gpu，Pod 可以像申请 CPU 一样申请它。
+#
+# ── 你在做什么 ────────────────────────────────────────────────
+#
+# 机器上明明插着一张 4090，nvidia-smi 也看得到，可 kubectl describe node 里只有 cpu、memory，
+# 没有任何 GPU。K8s 本身不认识 GPU，它只认识「扩展资源」：谁向 kubelet 报告「我这有 N 个 xxx」，
+# 调度器就把 xxx 当成可分配的资源。
+#
+# NVIDIA device plugin 干的就是这件事：它跑在每个 GPU 节点上（DaemonSet），通过 NVML 数出卡的数量，
+# 经 /var/lib/kubelet/device-plugins 下的 socket 告诉 kubelet「这里有 1 个 nvidia.com/gpu」。
+# Pod 申请到之后，kubelet 再回头问插件：这个容器该挂哪张卡、哪些设备文件。
+#
+# ── 为什么要设 runtimeClassName ───────────────────────────────
+#
+# 插件自己也要调用 NVML 才能数卡，所以它的容器里必须有驱动库。
+# 在 k3s 上不设 runtimeClassName: nvidia，容器走默认的 runc，驱动库不会被注入，
+# 日志里是一句「could not load NVML library」，节点上永远看不到 nvidia.com/gpu。
+# 这个坑的表象和根因毫无关系，很容易误以为是驱动没装好。
+#
+# ── 怎么执行 ──────────────────────────────────────────────────
+#
+#   kubectl apply -f lessons/00-namespaces.yaml
+#   kubectl apply -f lessons/01-gpu-scheduling/runtimeclass.yaml
+#   kubectl apply -f lessons/01-gpu-scheduling/device-plugin-config-exclusive.yaml
+#   kubectl apply -f lessons/01-gpu-scheduling/device-plugin.yaml
+#
+# ── 应该看到什么 ──────────────────────────────────────────────
+#
+#   kubectl -n gpu get pods                         插件 Pod 为 Running
+#   kubectl get node -o jsonpath='{.items[0].status.allocatable}'
+#                                                   里面有 "nvidia.com/gpu":"1"
+#
+# 接下来用 gpu-hog-a.yaml、gpu-hog-b.yaml 看调度器怎么分这张卡。
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-device-plugin
+  namespace: gpu
+spec:
+  selector:
+    matchLabels:
+      name: nvidia-device-plugin
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: nvidia-device-plugin
+    spec:
+      runtimeClassName: nvidia
+      priorityClassName: system-node-critical
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: nvidia-device-plugin
+          image: nvcr.io/nvidia/k8s-device-plugin:v0.20.1
+          env:
+            - name: CONFIG_FILE
+              value: /config/config.yaml
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: device-plugin
+              mountPath: /var/lib/kubelet/device-plugins
+            - name: config
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
+        - name: config
+          configMap:
+            name: nvidia-device-plugin-config

@@ -1,0 +1,22 @@
+# k3s 镜像加速配置：setup-node.sh 会把它复制到 /etc/rancher/k3s/registries.yaml
+#
+# ── 为什么要有它 ──────────────────────────────────────────────
+#
+# 服务器在国内，直连 docker.io、ghcr.io、nvcr.io 拉镜像经常超时，
+# Pod 会卡在 ImagePullBackOff，看起来像配置错了，其实只是网络。
+# 这里给三个仓库都配上 DaoCloud 的公共镜像站；镜像站失败时，containerd 会回退到原站。
+#
+# 改了这个文件要 sudo systemctl restart k3s 才生效。
+mirrors:
+  docker.io:
+    endpoint:
+      - "https://docker.m.daocloud.io"
+      - "https://registry-1.docker.io"
+  ghcr.io:
+    endpoint:
+      - "https://ghcr.m.daocloud.io"
+      - "https://ghcr.io"
+  nvcr.io:
+    endpoint:
+      - "https://nvcr.m.daocloud.io"
+      - "https://nvcr.io"

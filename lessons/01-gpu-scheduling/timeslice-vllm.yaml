@@ -1,0 +1,180 @@
+# 第 1 课（选做）· 两个模型挤一张卡
+#
+# 60 分钟。进度落后时这一节第一个砍。
+#
+# ── 你在做什么 ────────────────────────────────────────────────
+#
+# 团队里两个小组都想要一个 1.7B 模型做测试，可机器上只有一张卡。
+# 整卡分配时第二个只能 Pending（见 gpu-hog-b.yaml）；time-slicing 让一张卡报成 2 个 nvidia.com/gpu，
+# 两个 vLLM 实例就能同时跑在同一张卡上。代价是什么，这一节用数据回答。
+#
+# ── 怎么执行 ──────────────────────────────────────────────────
+#
+#   1. 下载模型：scripts/download-model.sh Qwen/Qwen3-1.7B
+#   2. 切到 time-slicing：
+#        kubectl apply -f lessons/01-gpu-scheduling/device-plugin-config-timeslice.yaml
+#        kubectl -n gpu rollout restart ds/nvidia-device-plugin
+#      节点 allocatable 里的 nvidia.com/gpu 变成 2。
+#   3. kubectl apply -f lessons/01-gpu-scheduling/timeslice-vllm.yaml，两个都 Ready。
+#   4. 先只压 a，再 a、b 同时压（命令见第 4 课的 bench.sh）：
+#        CONCURRENCIES=16 TOKENIZER=/models/Qwen3-1.7B scripts/bench.sh ts-single   http://vllm-small-a.infer:8000 qwen3-1.7b
+#        CONCURRENCIES=16 TOKENIZER=/models/Qwen3-1.7B scripts/bench.sh ts-shared-a http://vllm-small-a.infer:8000 qwen3-1.7b &
+#        CONCURRENCIES=16 TOKENIZER=/models/Qwen3-1.7B scripts/bench.sh ts-shared-b http://vllm-small-b.infer:8000 qwen3-1.7b
+#   5. 故意制造一次失败：把两个实例的显存占比都改成 0.9
+#        for d in vllm-small-a vllm-small-b; do
+#          kubectl -n infer patch deploy "$d" --type=json \
+#            -p='[{"op":"replace","path":"/spec/template/spec/containers/0/args/4","value":"0.9"}]'
+#        done
+#      后启动的那个会因显存不足退出，把它的日志存到 results/01-gpu/oom.log。
+#   6. 收尾：删除两个 Deployment，切回 exclusive 配置并重启插件。
+#
+# ── 应该看到什么 ──────────────────────────────────────────────
+#
+# 同时压测时，两个实例的 TTFT 和吞吐都比单独压测时差：它们在轮流使用同一张卡的计算单元。
+# 第 5 步里第二个实例起不来：time-slicing 只分时间片，不分显存。
+# 两个实例都以为自己能用 90% 的显存，先启动的拿走了，后启动的就没了。
+#
+# ── 三种共享方式怎么选 ────────────────────────────────────────
+#
+#   time-slicing  轮流使用整张卡；不隔离显存、不隔离故障，一个进程把卡搞挂大家一起挂。
+#                 任何卡都能用，适合开发测试、利用率很低的小模型。
+#   MPS           多个进程真正并发跑在卡上，可以限制每个进程的算力比例和显存上限；
+#                 故障隔离仍然弱。适合多个推理进程想并发、又能接受相互影响的场景。
+#   MIG           A100、H100 等数据中心卡在硬件层面切成几份，显存、算力、故障都隔离，
+#                 像几张小卡。4090 不支持 MIG。适合多租户、对隔离有硬要求的生产环境。
+#
+# 补充一个监控上的坑：time-slicing 下两个 Pod 用的是同一个物理设备，
+# DCGM 的 GPU 利用率没法拆到每个 Pod，只能看整张卡（第 3 课会看到）。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-small-a
+  namespace: infer
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vllm-small-a
+  template:
+    metadata:
+      labels:
+        app: vllm-small-a
+    spec:
+      runtimeClassName: nvidia
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.30.0
+          command: ["vllm", "serve"]
+          args: ["/models/Qwen3-1.7B", "--served-model-name", "qwen3-1.7b",
+                 "--gpu-memory-utilization", "0.4", "--max-model-len", "4096", "--port", "8000"]
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 5
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: models
+          hostPath:
+            path: /data/models
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-small-a
+  namespace: infer
+spec:
+  selector:
+    app: vllm-small-a
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-small-b
+  namespace: infer
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vllm-small-b
+  template:
+    metadata:
+      labels:
+        app: vllm-small-b
+    spec:
+      runtimeClassName: nvidia
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.30.0
+          command: ["vllm", "serve"]
+          args: ["/models/Qwen3-1.7B", "--served-model-name", "qwen3-1.7b",
+                 "--gpu-memory-utilization", "0.4", "--max-model-len", "4096", "--port", "8000"]
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 5
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: models
+          hostPath:
+            path: /data/models
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-small-b
+  namespace: infer
+spec:
+  selector:
+    app: vllm-small-b
+  ports:
+    - port: 8000
+      targetPort: 8000
