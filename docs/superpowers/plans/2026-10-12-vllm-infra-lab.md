@@ -495,8 +495,8 @@ Expected: 6 passed。
 
 以 `../agent-cost-loop/k8s/10-litellm-config.yaml`、`30-litellm.yaml` 为起点。`litellm-config.yaml`（ConfigMap，命名空间 `gateway`）：
 - 模型组 `qwen3-8b`：`model: hosted_vllm/qwen3-8b`，`api_base: http://vllm.infer:8000/v1`，`timeout: 30`（任务 12 按实测改），`extra_body: {chat_template_kwargs: {enable_thinking: false}}`，`model_info.id: self-hosted`。
-- 模型组 `qwen3-8b-bailian`：`model: openai/qwen3-8b`，`api_base: https://dashscope.aliyuncs.com/compatible-mode/v1`，`api_key: os.environ/DASHSCOPE_API_KEY`，`extra_body: {enable_thinking: false}`，`model_info.id: bailian`。
-- `router_settings`：`fallbacks: [{"qwen3-8b": ["qwen3-8b-bailian"]}]`，`num_retries: 0`。
+- 模型组 `bailian-flash`：`model: openai/qwen3.8-flash`（百炼已不提供 qwen3-8b，2026-10-13 确认），`api_base: https://dashscope.aliyuncs.com/compatible-mode/v1`，`api_key: os.environ/DASHSCOPE_API_KEY`，`extra_body: {enable_thinking: false}`，`model_info.id: bailian`。
+- `router_settings`：`fallbacks: [{"qwen3-8b": ["bailian-flash"]}]`，`num_retries: 0`。
 - `general_settings.master_key: os.environ/LITELLM_MASTER_KEY`。
 
 讲解写清切换机制：vLLM 过载时不拒绝请求而是排队，排队导致请求超过 `timeout`，LiteLLM 把超时请求转给百炼。这里没有采用规格书写的「并发上限」：LiteLLM v1.102.1 的 `router.py` 用 `asyncio.Semaphore` 实现 `max_parallel_requests`，超出的请求在网关排队等待，不会触发 fallback（2026-10-13 查源码确认，任务 12 的 Step 1b 可再实测佐证）。
@@ -519,7 +519,7 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 
 - [ ] **Step 1:** Mac 上执行 `scripts/check-images.sh`。Expected: 所有镜像存在；不存在的按 Global Constraints 的规则替换，`make check` 后提交。
 - [x] **Step 2（2026-10-13 已完成：上海 RTX 4090 48G，root 可用，驱动 570.153.02，系统盘可用 83G，内存 94Gi。写 `results/00-instance.md` 时不要写密码和 IP）:** 在优云智算开一台 RTX 4090 单卡实例，计费选**按量付费**（只有按量实例能在关机时切到 0.15 元/小时的无卡模式），镜像选**系统镜像 Ubuntu 22.04**，创建页如有预装 NVIDIA 驱动的选项则选 570 或更高版本（系统镜像是虚机；CUDA、PyTorch 等基础镜像和社区镜像是容器，不能装 Docker 和 k3s，不要选）。按实例详情页「登录指令」中的主机和端口登录（华北一C 等无公网 IP 的地域是映射端口，不一定是 22），用户 `ubuntu`；先用控制台密码登录，再 `ssh-copy-id` 加公钥；在 Mac 的 `~/.ssh/config` 里配好别名并写进 `.env` 的 `GPU_HOST`。确认：`sudo -i` 能拿到 root；`nvidia-smi` 有没有输出（没有说明需要装驱动，第 2 天由 `setup-node.sh` 处理），有则记下驱动版本；`df -h` 中可用空间不少于 80GB（三个模型约 26GB，加上 vLLM 等镜像）；关机后是否计费（查文档或客服）。写入 `results/00-instance.md`。如果登录用户是 root 且端口是 23，说明开成了容器实例，删除后按上面的要求重开。
-- [ ] **Step 3:** 查百炼是否提供 `qwen3-8b` 及其输入、输出单价，连同查询日期和价格页链接写入 `results/00-instance.md`。
+- [x] **Step 3（2026-10-13 已完成：百炼已不提供 qwen3-8b，降级目标改为 qwen3.8-flash，北京地域输入 0.8 元、输出 2.7 元 / 百万 token，价格页 https://help.aliyun.com/zh/model-studio/model-pricing）:** 查百炼是否提供 `qwen3-8b` 及其输入、输出单价，连同查询日期和价格页链接写入 `results/00-instance.md`。
 - [ ] **Step 4:** `ssh $GPU_HOST 'sudo mkdir -p /data/lab && sudo chown ubuntu:ubuntu /data/lab'`，然后 `rsync -av --exclude .venv --exclude .env ./ $GPU_HOST:/data/lab/`，并在服务器上手动建 `/data/lab/.env`。
 
 ### Task 8: 第 2 天——第 1 课

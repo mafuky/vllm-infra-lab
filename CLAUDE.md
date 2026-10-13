@@ -20,7 +20,7 @@
 - 一台优云智算上海 RTX 4090 48G 单卡（14 核、96GB 内存，Ubuntu-nvidia 22.04 虚机，按量 3.17 元/小时；24G 的 4090、3090 和 5090 在 2026-10-13 均无货）上跑单节点 k3s，四个命名空间：gpu、infer、gateway、monitoring。实例用系统镜像 Ubuntu-nvidia 22.04 创建（虚机，`ubuntu` 用户、可 sudo，端口以详情页「登录指令」为准；出厂驱动 570.153.02 是用 `.run` 装的，`setup-node.sh` 负责升级到 580.178.04），按量付费；基础镜像和社区镜像创建的是容器（root、23 端口），装不了 k3s。
 - 主模型 Qwen3-8B BF16，对照 Qwen3-8B-AWQ；模型从 ModelScope 下载到宿主机 `/data/models`。
 - 监控直接写 Prometheus、Grafana 配置，不用 Prometheus Operator；告警不接通知渠道。
-- 网关只用 LiteLLM 自带的超时和 fallback，不写自定义路由；fallback 到百炼的同款模型（百炼是否还有 qwen3-8b 待作者在控制台确认）。LiteLLM 的 `max_parallel_requests` 是信号量排队，不会触发 fallback（已查 v1.102.1 源码）。
+- 网关只用 LiteLLM 自带的超时和 fallback，不写自定义路由；fallback 到百炼的 qwen3.8-flash（百炼已不提供 qwen3-8b，2026-10-13 确认；北京地域每百万 token 输入 0.8 元、输出 2.7 元）。LiteLLM 的 `max_parallel_requests` 是信号量排队，不会触发 fallback（已查 v1.102.1 源码）。
 - 进度落后时的砍需求顺序：time-slicing 实验 → 成本计算 → AWQ 对照。
 
 ## 约束
