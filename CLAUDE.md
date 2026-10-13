@@ -1,25 +1,26 @@
 # vllm-infra-lab
 
-在一张 RTX 4090 上自建大模型推理平台：vLLM + K8s GPU 调度 + Prometheus/Grafana 监控 + LiteLLM 网关降级。作者mafuyu的个人项目。
+在一张 RTX 4090（48G）上自建大模型推理平台：vLLM + K8s GPU 调度 + Prometheus/Grafana 监控 + LiteLLM 网关降级。作者mafuyu的个人项目。
 
-## 当前状态（2026-10-12）
+## 当前状态（2026-10-13）
 
 - 设计文档已获作者认可：`docs/superpowers/specs/2026-10-12-vllm-infra-lab-design.md`。
-- 实施计划已写好，等待作者评审并选择执行方式：`docs/superpowers/plans/2026-10-12-vllm-infra-lab.md`。动手前先通读这两份文档，技术决定以它们为准；计划中对规格书的两处调整（成本按单请求比较、网关切换靠超时）以计划为准。
-- 还没有任何代码。任务 1-6 在 Mac 上完成，任务 7-13 由作者在 GPU 机器上执行。
-- 项目已延长为两周。第二周设计文档待作者评审：`docs/superpowers/specs/2026-10-13-vllm-infra-lab-week2-design.md`（SGLang 对比与 Agent 式负载、冷启动、KEDA 扩缩容、vLLM 源码笔记）。第二周的实施计划在评审通过后另写。
+- 第一周实施计划已获认可，执行方式为在当前会话直接实现（executing-plans），最后派一个审查 Agent 整体检查：`docs/superpowers/plans/2026-10-12-vllm-infra-lab.md`。动手前先通读这两份文档，技术决定以它们为准；计划中对规格书的两处调整（成本按单请求比较、网关切换靠超时）以计划为准。
+- GPU 实例已开通并完成检查（任务 7 Step 2）。任务 1-6 在 Mac 上完成，任务 8-13 由作者在 GPU 机器上执行。
+- 项目已延长为两周。第二周设计文档已按 2026-10-13 的探测结果更新，待作者评审：`docs/superpowers/specs/2026-10-13-vllm-infra-lab-week2-design.md`（SGLang 对比与 Agent 式负载、冷启动、KEDA 扩缩容、vLLM 源码笔记）。第二周的实施计划在评审通过后另写。
 
 ## 已定决策（不要推翻，有异议先问作者）
 
-- 一台优云智算 GPU 云服务器（RTX 4090 24GB）上跑单节点 k3s，四个命名空间：gpu、infer、gateway、monitoring。实例必须用系统镜像 Ubuntu 22.04 创建（虚机，`ubuntu` 用户、可 sudo，端口以详情页「登录指令」为准；官方文档说无预装环境，驱动可能要由 `setup-node.sh` 安装），按量付费；基础镜像和社区镜像创建的是容器（root、23 端口），装不了 k3s。
+- 一台优云智算上海 RTX 4090 48G 单卡（14 核、96GB 内存，Ubuntu-nvidia 22.04 虚机，按量 3.17 元/小时；24G 的 4090、3090 和 5090 在 2026-10-13 均无货）上跑单节点 k3s，四个命名空间：gpu、infer、gateway、monitoring。实例用系统镜像 Ubuntu-nvidia 22.04 创建（虚机，`ubuntu` 用户、可 sudo，端口以详情页「登录指令」为准；出厂驱动 570.153.02 是用 `.run` 装的，`setup-node.sh` 负责升级到 580.178.04），按量付费；基础镜像和社区镜像创建的是容器（root、23 端口），装不了 k3s。
 - 主模型 Qwen3-8B BF16，对照 Qwen3-8B-AWQ；模型从 ModelScope 下载到宿主机 `/data/models`。
 - 监控直接写 Prometheus、Grafana 配置，不用 Prometheus Operator；告警不接通知渠道。
-- 网关只用 LiteLLM 自带的并发上限和 fallback，不写自定义路由；fallback 到百炼的同款模型。
+- 网关只用 LiteLLM 自带的超时和 fallback，不写自定义路由；fallback 到百炼的同款模型（百炼是否还有 qwen3-8b 待作者在控制台确认）。LiteLLM 的 `max_parallel_requests` 是信号量排队，不会触发 fallback（已查 v1.102.1 源码）。
 - 进度落后时的砍需求顺序：time-slicing 实验 → 成本计算 → AWQ 对照。
 
 ## 约束
 
-- 周期两周。第一周 GPU 预算 100 元（超过 80 元停止可砍项）；两周合计不超过 150 元（超过 120 元停止所有可砍项）。
+- 周期两周。第一周 GPU 约 80 元（超过 80 元停止可砍项）；两周合计不超过 150 元（超过 120 元停止所有可砍项）。不需要 GPU 的活放在无卡模式下做。
+- 48G 卡用 `--gpu-memory-utilization 0.45` 模拟 24G 卡（KV Cache 约 2-3 万 token），另做 0.90 的不限显存对照。
 - 开发机是 Mac（M4 Pro），只写配置、脚本、画图，不跑推理。
 - 本机 kubectl 当前 context `k3s-sandbox` 是 sandbox-operator 用的远程 CPU 集群，不是本项目的 GPU 集群，不要往上部署本项目。
 
