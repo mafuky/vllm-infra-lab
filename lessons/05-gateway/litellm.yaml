@@ -1,0 +1,57 @@
+# 第 5 课 · LiteLLM 网关
+#
+# 配置来自 litellm-config.yaml，密钥来自 Secret litellm-secrets（scripts/create-secrets.sh 创建）。
+# 业务方的入口是 http://litellm.gateway:4000/v1，Authorization 带 LITELLM_MASTER_KEY。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  namespace: gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: litellm
+  template:
+    metadata:
+      labels:
+        app: litellm
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4000"
+        prometheus.io/path: /metrics
+    spec:
+      containers:
+        - name: litellm
+          image: ghcr.io/berriai/litellm:v1.102.1
+          args: ["--config", "/app/config.yaml", "--port", "4000"]
+          envFrom:
+            - secretRef:
+                name: litellm-secrets
+          ports:
+            - containerPort: 4000
+          readinessProbe:
+            httpGet:
+              path: /health/liveliness
+              port: 4000
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+      volumes:
+        - name: config
+          configMap:
+            name: litellm-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm
+  namespace: gateway
+spec:
+  selector:
+    app: litellm
+  ports:
+    - port: 4000
+      targetPort: 4000
