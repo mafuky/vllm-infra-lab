@@ -39,6 +39,9 @@
 #   .venv/bin/python scripts/plot.py results/bench results/charts > results/bench/summary.md
 set -euo pipefail
 
+# k3s 自带的 kubectl 在没有 KUBECONFIG 时读 root 才能读的 /etc/rancher/k3s/k3s.yaml
+export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
+
 [ "$#" -ge 3 ] || { echo "用法：$0 <label> <base_url> <模型名> [额外参数...]"; exit 1; }
 label="$1"; base_url="$2"; model="$3"; shift 3
 
