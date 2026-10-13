@@ -1,0 +1,28 @@
+# 第 1 课 · 一张卡只能给一个人
+#
+# ── 你在做什么 ────────────────────────────────────────────────
+#
+# 这个 Pod 申请 1 个 nvidia.com/gpu，启动后打印分到的卡，然后一直挂着占住它。
+# 先 apply 它，再 apply gpu-hog-b.yaml，看第二个申请者的遭遇。
+#
+# ── 怎么执行 ──────────────────────────────────────────────────
+#
+#   kubectl apply -f lessons/01-gpu-scheduling/gpu-hog-a.yaml
+#   kubectl -n infer logs gpu-hog-a      # 应该看到 GPU 0: NVIDIA GeForce RTX 4090
+#
+# 做完实验记得删掉：kubectl -n infer delete pod gpu-hog-a gpu-hog-b
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gpu-hog-a
+  namespace: infer
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+  containers:
+    - name: hog
+      image: nvidia/cuda:12.4.1-base-ubuntu22.04
+      command: ["sh", "-c", "nvidia-smi -L && sleep infinity"]
+      resources:
+        limits:
+          nvidia.com/gpu: 1
