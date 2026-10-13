@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在一张 RTX 4090 上搭出单节点 k3s 推理平台（GPU 调度、vLLM、监控告警、LiteLLM 降级），每课带讲解，产出可写进简历的实测数据。
+**Goal:** 在一张 RTX 4090（48G）上搭出单节点 k3s 推理平台（GPU 调度、vLLM、监控告警、LiteLLM 降级），每课带讲解，产出可写进简历的实测数据。
 
 **Architecture:** 任务 1-6 在 Mac 上写全部配置、脚本和 Python 工具，用 pytest、promtool、kubeconform、shellcheck 离线验证。任务 7-13 由作者在 GPU 机器上逐课执行，Claude 协助排障，结果写入 `results/`。所有 K8s 资源是手写 YAML，按课放在 `lessons/` 下。
 
@@ -12,29 +12,30 @@
 
 ## Global Constraints
 
-- 一周完成；GPU 费用不超过 100 元，累计超过 80 元停止追加实验。
-- 硬件：优云智算 RTX 4090 24GB 单卡；开发机 Mac 只写配置、脚本、画图。
+- 第一周完成；第一周 GPU 费用约 80 元，超过 80 元停止可砍项；两周合计不超过 150 元。装软件、下模型、拉镜像等不需要 GPU 的活放在无卡模式（0.15 元/小时）下做。
+- 硬件：优云智算上海 RTX 4090 48G 单卡（14 核、96GB 内存，Ubuntu-nvidia 22.04 虚机，按量 3.17 元/小时，出厂驱动 570.153.02，系统盘可用 83GB）；开发机 Mac 只写配置、脚本、画图。
 - 命名空间固定为 `gpu`、`infer`、`gateway`、`monitoring`；模型目录固定为宿主机 `/data/models`，从 ModelScope 下载。
 - 主模型 `Qwen/Qwen3-8B`（BF16），对照 `Qwen/Qwen3-8B-AWQ`；time-slicing 实验用 `Qwen/Qwen3-1.7B`。
-- vLLM 基线参数：`--max-model-len 8192`、`--gpu-memory-utilization 0.90`、开启前缀缓存。
+- vLLM 基线参数：`--max-model-len 8192`、`--gpu-memory-utilization 0.45`（48G × 0.45 ≈ 21.6GB，等同 24G 卡跑 0.9）、开启前缀缓存。另做一组 0.90 的不限显存对照。
 - 压测：random 数据集，输入 1024、输出 256 token；并发 1、4、16、32、64；每档请求数 = max(10 × 并发, 50)。
 - 告警阈值：KV Cache 占用 > 0.9 持续 1m；排队请求 > 5 持续 1m；TTFT P95 > 2s 持续 2m。
 - 所有镜像锁定具体版本号，禁止 `latest`、`main-stable`、不带标签。
 - 密钥只放 K8s Secret 和本地 `.env`，仓库只提交 `.env.example`。
 - README 和简历中的每个数字都必须来自 `results/` 下的真实结果，不得编造或预测。
 - 每个 YAML 和脚本的头部注释按 `../sandbox-operator/internal/controller/sandbox_controller.go` 的写法：标题「第 N 课 · <标题>」、预计时长，再分「── 你在做什么 ──」「── 为什么 ──」「── 怎么执行 ──」「── 应该看到什么 ──」几节，用真实工作场景讲原理。中文。
-- 版本号（任务 1 用 skopeo 验证存在；不存在时换成同系列最近一个发布满两周的稳定版，并同步改 README 版本表）：
+- 版本号（2026-10-13 已逐个探测存在，且发布满两周；任务 1 仍用 skopeo 复核；不存在时换成同系列最近一个发布满两周的稳定版，并同步改 README 版本表）：
 
 | 组件 | 版本 |
 | --- | --- |
-| k3s | `v1.31.6+k3s1` |
-| NVIDIA Container Toolkit | `1.17.8-1` |
-| NVIDIA device plugin | `nvcr.io/nvidia/k8s-device-plugin:v0.17.1` |
-| DCGM Exporter | `nvcr.io/nvidia/k8s/dcgm-exporter:3.3.9-3.6.1-ubuntu22.04` |
-| vLLM | `vllm/vllm-openai:v0.11.0`（驱动低于 570 时改用 `v0.8.5.post1`，指标名随之变化，由任务 9 的指标核对兜底） |
-| Prometheus | `prom/prometheus:v3.5.0` |
-| Grafana | `grafana/grafana:11.6.0` |
-| LiteLLM | `ghcr.io/berriai/litellm:main-v1.74.3-stable` |
+| NVIDIA 驱动 | `580.178.04`（官方 `.run`，2026-07-13 发布，580 长期支持分支） |
+| k3s | `v1.35.8+k3s1` |
+| NVIDIA Container Toolkit | `1.20.1-1` |
+| NVIDIA device plugin | `nvcr.io/nvidia/k8s-device-plugin:v0.20.1` |
+| DCGM Exporter | `nvcr.io/nvidia/k8s/dcgm-exporter:4.4.2-4.7.1-ubuntu22.04` |
+| vLLM | `vllm/vllm-openai:v0.30.0`（默认 CUDA 13，需驱动 580 以上） |
+| Prometheus | `prom/prometheus:v3.15.0` |
+| Grafana | `grafana/grafana:13.2.3` |
+| LiteLLM | `ghcr.io/berriai/litellm:v1.102.1`（新版镜像标签不再带 -stable） |
 | CUDA 测试镜像 | `nvidia/cuda:12.4.1-base-ubuntu22.04` |
 
 ## Review Focus
@@ -110,7 +111,7 @@ def test_registry_port_is_not_a_tag():
     assert find_floating_images("image: localhost:5000/foo") == ["localhost:5000/foo"]
 
 def test_pinned_and_digest_pass():
-    text = "image: prom/prometheus:v3.5.0\n  image: foo@sha256:" + "a" * 64
+    text = "image: prom/prometheus:v3.15.0\n  image: foo@sha256:" + "a" * 64
     assert find_floating_images(text) == []
 ```
 
@@ -134,7 +135,7 @@ Expected: 5 passed。
 - `.env.example`：`DASHSCOPE_API_KEY=`、`LITELLM_MASTER_KEY=`、`GRAFANA_ADMIN_PASSWORD=`、`GPU_HOST=`（ssh 别名）。
 - `lessons/00-namespaces.yaml`：四个 Namespace。
 - `scripts/check-images.sh`：从 `lessons/**/*.yaml` 提取 `image:`，逐个执行 `skopeo inspect --raw docker://<ref> >/dev/null`，汇报不存在的镜像，任一失败退出码 1。
-- `Makefile` 的 `check` 目标依次跑：`pytest`、`python3 scripts/check_pins.py $(shell find lessons -name '*.yaml')`、`kubeconform -strict -summary -kubernetes-version 1.31.0 -ignore-filename-pattern 'rules|dashboards|registries' lessons`、`shellcheck scripts/*.sh`。
+- `Makefile` 的 `check` 目标依次跑：`pytest`、`python3 scripts/check_pins.py $(shell find lessons -name '*.yaml')`、`kubeconform -strict -summary -kubernetes-version 1.35.0 -ignore-filename-pattern 'rules|dashboards|registries' lessons`、`shellcheck scripts/*.sh`。
 
 Run: `make check`
 Expected: 全部通过。
@@ -157,7 +158,7 @@ git add -A && git commit -m "chore: 搭建仓库骨架和镜像锁定检查"
 
 - [ ] **Step 1: `setup-node.sh`**
 
-优云智算虚机以 `ubuntu` 用户登录，脚本用 `sudo` 运行。依次：检查以 root 运行且 `SUDO_USER` 非空；`nvidia-smi` 可用则打印驱动版本，驱动 < 570 时提示改用 vLLM `v0.8.5.post1`；`nvidia-smi` 不可用时（优云智算官方文档说系统镜像无预装环境）安装 `nvidia-driver-570-server`，提示重启后重新运行本脚本并退出；按 NVIDIA 官方 apt 源安装 `nvidia-container-toolkit=1.17.8-1`；把 `registries.yaml` 复制到 `/etc/rancher/k3s/registries.yaml`；用 rancher 国内镜像安装脚本装 k3s（`INSTALL_K3S_MIRROR=cn INSTALL_K3S_VERSION=v1.31.6+k3s1`）；创建 `/data/models`、`/data/results`、`/data/lab`（属主 `SUDO_USER`）和 `/data/prometheus`（属主 65534）；把 `/etc/rancher/k3s/k3s.yaml` 复制到 `/home/$SUDO_USER/.kube/config` 并改属主，之后 `ubuntu` 用户不加 sudo 也能用 kubectl。
+优云智算虚机以 `ubuntu` 用户登录，脚本用 `sudo` 运行。依次：检查以 root 运行且 `SUDO_USER` 非空；`nvidia-smi` 不可用或驱动低于 580 时：apt 安装 `build-essential` 和 `linux-headers-$(uname -r)`，从 `https://download.nvidia.com/XFree86/Linux-x86_64/580.178.04/` 下载 `NVIDIA-Linux-x86_64-580.178.04.run` 静默安装（出厂的 570 驱动是 `.run` 装的，不能混用 apt 的驱动包；`.run` 会自动卸载旧版），提示重启后重新运行本脚本并退出；驱动 ≥ 580 时打印版本继续；按 NVIDIA 官方 apt 源安装 `nvidia-container-toolkit=1.17.8-1`；把 `registries.yaml` 复制到 `/etc/rancher/k3s/registries.yaml`；用 rancher 国内镜像安装脚本装 k3s（`INSTALL_K3S_MIRROR=cn INSTALL_K3S_VERSION=v1.31.6+k3s1`）；创建 `/data/models`、`/data/results`、`/data/lab`（属主 `SUDO_USER`）和 `/data/prometheus`（属主 65534）；把 `/etc/rancher/k3s/k3s.yaml` 复制到 `/home/$SUDO_USER/.kube/config` 并改属主，之后 `ubuntu` 用户不加 sudo 也能用 kubectl。
 
 - [ ] **Step 2: `registries.yaml` 和 `runtimeclass.yaml`**
 
@@ -239,12 +240,12 @@ Expected: 4 passed。
 
 - [ ] **Step 5: `expected-metrics.txt`**
 
-每行一个，按 vLLM v0.11.0 的命名：`vllm:num_requests_running`、`vllm:num_requests_waiting`、`vllm:kv_cache_usage_perc`、`vllm:time_to_first_token_seconds`、`vllm:inter_token_latency_seconds`、`vllm:generation_tokens_total`、`vllm:prompt_tokens_total`、`vllm:prefix_cache_queries_total`、`vllm:prefix_cache_hits_total`、`DCGM_FI_DEV_GPU_UTIL`、`DCGM_FI_DEV_FB_USED`、`DCGM_FI_DEV_GPU_TEMP`、`DCGM_FI_DEV_POWER_USAGE`。
+每行一个，按 vLLM v0.30.0 的命名（2026-10-13 已对照 v0.30.0 源码核实）：`vllm:num_requests_running`、`vllm:num_requests_waiting`、`vllm:kv_cache_usage_perc`、`vllm:time_to_first_token_seconds`、`vllm:inter_token_latency_seconds`、`vllm:generation_tokens_total`、`vllm:prompt_tokens_total`、`vllm:prefix_cache_queries_total`、`vllm:prefix_cache_hits_total`、`DCGM_FI_DEV_GPU_UTIL`、`DCGM_FI_DEV_FB_USED`、`DCGM_FI_DEV_GPU_TEMP`、`DCGM_FI_DEV_POWER_USAGE`。
 
 - [ ] **Step 6: vLLM 部署和下载脚本**
 
 `download-model.sh <ModelScope 模型 ID>...`：`pip install "modelscope>=1.25,<2"` 后 `modelscope download --model <id> --local_dir /data/models/<名称>`，已存在则跳过。
-`vllm-qwen3-8b.yaml`：Deployment `vllm` 加 Service `vllm`（命名空间 `infer`，端口 8000）。`strategy: Recreate`（只有一张卡，滚动更新会让新 Pod 永远 Pending，讲解里写明）；`runtimeClassName: nvidia`；`limits: nvidia.com/gpu: 1`；hostPath `/data/models` 只读挂到 `/models`；`/dev/shm` 用 `medium: Memory` 的 emptyDir；参数 `--model /models/Qwen3-8B --served-model-name qwen3-8b --max-model-len 8192 --gpu-memory-utilization 0.90 --enable-prefix-caching --port 8000`；startupProbe `GET /health`，`periodSeconds: 10`、`failureThreshold: 60`；readinessProbe `GET /health`，`periodSeconds: 5`；Pod 注解 `prometheus.io/scrape: "true"`、`prometheus.io/port: "8000"`、`prometheus.io/path: /metrics`。讲解里写 KV Cache 容量估算（规格书 4.2 节的算式）。
+`vllm-qwen3-8b.yaml`：Deployment `vllm` 加 Service `vllm`（命名空间 `infer`，端口 8000）。`strategy: Recreate`（只有一张卡，滚动更新会让新 Pod 永远 Pending，讲解里写明）；`runtimeClassName: nvidia`；`limits: nvidia.com/gpu: 1`；hostPath `/data/models` 只读挂到 `/models`；`/dev/shm` 用 `medium: Memory` 的 emptyDir；参数 `--model /models/Qwen3-8B --served-model-name qwen3-8b --max-model-len 8192 --gpu-memory-utilization 0.45 --enable-prefix-caching --port 8000`；startupProbe `GET /health`，`periodSeconds: 10`、`failureThreshold: 60`；readinessProbe `GET /health`，`periodSeconds: 5`；Pod 注解 `prometheus.io/scrape: "true"`、`prometheus.io/port: "8000"`、`prometheus.io/path: /metrics`。讲解里写 KV Cache 容量估算（规格书 4.2 节的算式），并说明 48G 卡为什么用 0.45。
 `vllm-qwen3-8b-awq.yaml`：同名资源，只把 `--model` 改为 `/models/Qwen3-8B-AWQ`。
 
 - [ ] **Step 7: 验证并提交**
@@ -498,7 +499,7 @@ Expected: 6 passed。
 - `router_settings`：`fallbacks: [{"qwen3-8b": ["qwen3-8b-bailian"]}]`，`num_retries: 0`。
 - `general_settings.master_key: os.environ/LITELLM_MASTER_KEY`。
 
-讲解写清切换机制：vLLM 过载时不拒绝请求而是排队，排队导致请求超过 `timeout`，LiteLLM 把超时请求转给百炼。这里没有采用规格书写的「并发上限」：LiteLLM 的 `max_parallel_requests` 预计只会让请求在网关排队，不触发 fallback，任务 12 的 Step 1b 会实测核实。
+讲解写清切换机制：vLLM 过载时不拒绝请求而是排队，排队导致请求超过 `timeout`，LiteLLM 把超时请求转给百炼。这里没有采用规格书写的「并发上限」：LiteLLM v1.102.1 的 `router.py` 用 `asyncio.Semaphore` 实现 `max_parallel_requests`，超出的请求在网关排队等待，不会触发 fallback（2026-10-13 查源码确认，任务 12 的 Step 1b 可再实测佐证）。
 `litellm.yaml`：Deployment（锁定版本镜像，`envFrom` Secret `litellm-secrets`，挂载配置，`--config /app/config.yaml --port 4000`）和 Service `litellm:4000`。
 
 - [ ] **Step 6: 验证并提交**
@@ -517,7 +518,7 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 ### Task 7: 第 1 天收尾——开通 GPU 实例
 
 - [ ] **Step 1:** Mac 上执行 `scripts/check-images.sh`。Expected: 所有镜像存在；不存在的按 Global Constraints 的规则替换，`make check` 后提交。
-- [ ] **Step 2:** 在优云智算开一台 RTX 4090 单卡实例，计费选**按量付费**（只有按量实例能在关机时切到 0.15 元/小时的无卡模式），镜像选**系统镜像 Ubuntu 22.04**，创建页如有预装 NVIDIA 驱动的选项则选 570 或更高版本（系统镜像是虚机；CUDA、PyTorch 等基础镜像和社区镜像是容器，不能装 Docker 和 k3s，不要选）。按实例详情页「登录指令」中的主机和端口登录（华北一C 等无公网 IP 的地域是映射端口，不一定是 22），用户 `ubuntu`；先用控制台密码登录，再 `ssh-copy-id` 加公钥；在 Mac 的 `~/.ssh/config` 里配好别名并写进 `.env` 的 `GPU_HOST`。确认：`sudo -i` 能拿到 root；`nvidia-smi` 有没有输出（没有说明需要装驱动，第 2 天由 `setup-node.sh` 处理），有则记下驱动版本；`df -h` 中可用空间不少于 80GB（三个模型约 26GB，加上 vLLM 等镜像）；关机后是否计费（查文档或客服）。写入 `results/00-instance.md`。如果登录用户是 root 且端口是 23，说明开成了容器实例，删除后按上面的要求重开。
+- [x] **Step 2（2026-10-13 已完成：上海 RTX 4090 48G，root 可用，驱动 570.153.02，系统盘可用 83G，内存 94Gi。写 `results/00-instance.md` 时不要写密码和 IP）:** 在优云智算开一台 RTX 4090 单卡实例，计费选**按量付费**（只有按量实例能在关机时切到 0.15 元/小时的无卡模式），镜像选**系统镜像 Ubuntu 22.04**，创建页如有预装 NVIDIA 驱动的选项则选 570 或更高版本（系统镜像是虚机；CUDA、PyTorch 等基础镜像和社区镜像是容器，不能装 Docker 和 k3s，不要选）。按实例详情页「登录指令」中的主机和端口登录（华北一C 等无公网 IP 的地域是映射端口，不一定是 22），用户 `ubuntu`；先用控制台密码登录，再 `ssh-copy-id` 加公钥；在 Mac 的 `~/.ssh/config` 里配好别名并写进 `.env` 的 `GPU_HOST`。确认：`sudo -i` 能拿到 root；`nvidia-smi` 有没有输出（没有说明需要装驱动，第 2 天由 `setup-node.sh` 处理），有则记下驱动版本；`df -h` 中可用空间不少于 80GB（三个模型约 26GB，加上 vLLM 等镜像）；关机后是否计费（查文档或客服）。写入 `results/00-instance.md`。如果登录用户是 root 且端口是 23，说明开成了容器实例，删除后按上面的要求重开。
 - [ ] **Step 3:** 查百炼是否提供 `qwen3-8b` 及其输入、输出单价，连同查询日期和价格页链接写入 `results/00-instance.md`。
 - [ ] **Step 4:** `ssh $GPU_HOST 'sudo mkdir -p /data/lab && sudo chown ubuntu:ubuntu /data/lab'`，然后 `rsync -av --exclude .venv --exclude .env ./ $GPU_HOST:/data/lab/`，并在服务器上手动建 `/data/lab/.env`。
 
@@ -546,7 +547,7 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 ### Task 11: 第 5 天——第 4 课
 
 - [ ] **Step 1:** apply `bench-client.yaml`；跑基线 `scripts/bench.sh baseline http://vllm.infer:8000 qwen3-8b`。压到 32、64 并发时，在 Prometheus 告警页截图三条告警进入 firing。
-- [ ] **Step 2:** 依次修改 Deployment 参数后各跑一轮：`util085`（`--gpu-memory-utilization 0.85`）；`seqs16`、`seqs32`、`seqs64`（`--max-num-seqs`）；`prefix-on` 与 `prefix-off`（加 `--no-enable-prefix-caching`），这两轮都用 `--random-prefix-len 512 --random-input-len 512`。
+- [ ] **Step 2:** 依次修改 Deployment 参数后各跑一轮：`full48g`（`--gpu-memory-utilization 0.90`，不限显存的对照，`CONCURRENCIES="1 4 16 32 64 128"`，看 KV Cache 容量翻倍后拐点后移多少）；`util040`（`--gpu-memory-utilization 0.40`）；`seqs16`、`seqs32`、`seqs64`（`--max-num-seqs`）；`prefix-on` 与 `prefix-off`（加 `--no-enable-prefix-caching`），这两轮都用 `--random-prefix-len 512 --random-input-len 512`。
 - [ ] **Step 3（可砍）:** apply `vllm-qwen3-8b-awq.yaml`，label `awq` 跑一轮；结束后换回 BF16。
 - [ ] **Step 4:** Mac 上 `rsync` 结果，执行 `.venv/bin/python scripts/plot.py results/bench results/charts > results/bench/summary.md`。根据曲线定出拐点并发（TTFT P95 开始陡增前的最后一档），写入 `results/bench/knee.md`，附拐点那一档的 E2E P95。
 

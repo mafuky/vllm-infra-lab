@@ -4,7 +4,7 @@
 - 状态：待评审
 - 前置：第一周设计文档 `2026-10-12-vllm-infra-lab-design.md` 已完成并按其计划执行。本周复用第一周的 k3s 集群、监控、压测工具和网关，不重复搭建。
 - 周期：一周（5 个工作日，源码阅读放在晚上）
-- 预算：两周合计 GPU 费用不超过 150 元，本周预计 45-55 元
+- 预算：两周合计 GPU 费用不超过 150 元，本周预计约 75 元（硬件改为 4090 48G 后重算）
 
 ## 1. 目的
 
@@ -53,7 +53,7 @@ keda        KEDA Operator（官方清单安装，锁定版本）
 infer       ScaledObject：按 sum(vllm:num_requests_waiting) 扩缩 vllm Deployment
 ```
 
-单卡阶段做引擎对比和冷启动实验；扩缩容实验需要两张卡，只租一天双卡实例。第 1 天先确认优云智算能否把现有按量实例原地升级为双卡、保留数据盘；不能就新开双卡实例，重跑第一周的 `setup-node.sh` 和模型下载（约 1 小时，可在无卡模式下完成下载）。
+单卡阶段做引擎对比和冷启动实验；扩缩容实验需要两张卡，只租一天双卡实例。优云智算支持关机后升降配、修改 GPU 数量（`ResizeCompShareInstance`），但 2026-10-13 时 4090 48G 双卡显示无货，第 8 天再看库存；不能就新开双卡实例，重跑第一周的 `setup-node.sh` 和模型下载（约 1 小时，可在无卡模式下完成下载）。
 
 ## 4. 组件设计
 
@@ -61,7 +61,7 @@ infer       ScaledObject：按 sum(vllm:num_requests_waiting) 扩缩 vllm Deploy
 
 **部署**
 
-- 镜像使用 SGLang 官方镜像 `lmsysorg/sglang`，锁定具体版本号，版本需支持 Qwen3 并与驱动的 CUDA 版本匹配。第 1 天选定。
+- 镜像使用 `lmsysorg/sglang:v0.5.20-cu130`（2026-09-18 发布），与 vLLM v0.30.0 同为 CUDA 13，驱动 580。KV 容量用其 `sglang:max_total_num_tokens` 指标与 vLLM 启动日志对齐。
 - 模型同为 `/models/Qwen3-8B`（BF16），服务名同为 `qwen3-8b`，`--context-length 8192`，开启 `--enable-metrics` 供 Prometheus 采集。
 - 显存参数的语义不同：vLLM 的 `--gpu-memory-utilization` 是总显存占比，SGLang 的 `--mem-fraction-static` 是权重加 KV 池的占比。不按参数值对齐，而是调整 SGLang 的参数，使两者启动日志里的 KV Cache 容量（token 数）接近，偏差控制在 10% 以内。这一点本身就是面试讨论点。
 - `strategy: Recreate`，申请 1 张卡；运行 SGLang 时把 vllm 缩到 0，反之亦然。
@@ -92,6 +92,8 @@ Agent 的请求和聊天不同：系统提示词加工具定义很长且所有�
 
 ### 4.3 冷启动计时与优化
 
+**现成工具**（2026-10-13 探测）：vLLM v0.30.0 自带 `vllm bench startup`，能分别测冷启动和热启动（含编译缓存）；SGLang 暴露 `sglang:startup_time_seconds`、`sglang:weight_load_duration_seconds`、`sglang:startup_cuda_graph_time_seconds` 指标。`coldstart.py` 只补 K8s 调度和就绪两段，引擎内部各段用这两个现成来源交叉核对。
+
 **分阶段计时**（脚本 `scripts/coldstart.py`）
 
 删除 vllm Pod 让它重建，从以下来源取时间戳，拆成五段：
@@ -118,7 +120,7 @@ Agent 的请求和聊天不同：系统提示词加工具定义很长且所有�
 
 **机制**
 
-- 安装 KEDA（官方 YAML 清单，锁定版本）。选 KEDA 而不是 HPA 的原因：HPA 用自定义指标需要额外部署 prometheus-adapter，KEDA 直接查询 Prometheus，配置更少，还支持缩容到 0。
+- 安装 KEDA v2.21.0（官方 YAML 清单）。选 KEDA 而不是 HPA 的原因：HPA 用自定义指标需要额外部署 prometheus-adapter，KEDA 直接查询 Prometheus，配置更少，还支持缩容到 0。
 - ScaledObject 指向 `infer/vllm`，触发器为 Prometheus 查询 `sum(vllm:num_requests_waiting)`，阈值 5（与第一周的排队告警一致），`minReplicaCount: 1`，`maxReplicaCount: 2`，缩容冷却 300 秒。
 - 单节点、双卡，两个副本各占一张卡。K8s Service 按连接随机分发，不感知前缀缓存，讲解中说明这会降低缓存命中率，以及按前缀路由的方案如何解决。
 
@@ -175,7 +177,7 @@ results/
 
 晚上：第 8 到 12 天按顺序读源码、写笔记。
 
-费用估算：单卡约 14 小时 × 1.92 元 ≈ 27 元；双卡约 5 小时 × 4.27 元 ≈ 21 元；合计约 48 元。加上第一周，两周约 85-100 元，在 150 元预算内。
+费用估算（4090 48G）：单卡约 14 小时 × 3.17 元 ≈ 44 元；双卡约 5 小时 × 6.35 元 ≈ 32 元；合计约 76 元。加上第一周约 80 元，两周约 155 元，略超预算；靠无卡模式做准备工作、必要时砍可砍项，压到 150 元以内，在 150 元预算内。
 
 **进度落后时的砍需求顺序**
 
