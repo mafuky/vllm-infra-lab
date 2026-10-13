@@ -11,6 +11,9 @@
 # 密钥只存在于本机 .env 和集群的 Secret 里，不进 Git，脚本也不会把值打印出来。
 set -euo pipefail
 
+# k3s 自带的 kubectl 在没有 KUBECONFIG 时读 root 才能读的 /etc/rancher/k3s/k3s.yaml
+export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
+
 cd "$(dirname "$0")/.."
 [ -f .env ] || { echo "❌ 没有 .env：cp .env.example .env 后填写"; exit 1; }
 

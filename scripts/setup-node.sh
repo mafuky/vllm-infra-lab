@@ -18,7 +18,9 @@
 #   4. k3s：用国内镜像安装，系统组件镜像从阿里云拉，不装用不到的 traefik。
 #   5. 目录：/data/models（模型）、/data/results（压测结果）、/data/lab（本仓库）、
 #      /data/prometheus（Prometheus 以 65534 用户运行，属主要对）。
-#   6. kubeconfig：复制给 sudo 前的那个用户，之后不加 sudo 也能用 kubectl。
+#   6. kubeconfig：复制给 sudo 前的那个用户，并在 ~/.bashrc 里设置 KUBECONFIG。
+#      k3s 自带的 kubectl 在没有 KUBECONFIG 时会去读 /etc/rancher/k3s/k3s.yaml，那个文件只有 root 能读；
+#      设了 KUBECONFIG 之后，重新登录（或 source ~/.bashrc）就能不加 sudo 用 kubectl。
 #
 # ── 应该看到什么 ──────────────────────────────────────────────
 #
@@ -37,21 +39,27 @@ step() { echo; echo "==> $*"; }
 [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != root ] || die "请以普通用户（如 ubuntu）执行 sudo，需要 SUDO_USER 来设置目录属主和 kubeconfig"
 USER_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
 
+# 只在拿到形如 580.178.04 的版本号时才输出主版本号；nvidia-smi 出错时会把错误信息打到标准输出，
+# 不校验的话错误文本会被当成版本号，坏掉的驱动反而显示成 ✅
 driver_major() {
-  nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1 | cut -d. -f1
+  local v
+  v="$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)"
+  [[ "$v" =~ ^[0-9]+\. ]] || return 1
+  echo "${v%%.*}"
 }
 
 step "1/6 NVIDIA 驱动"
-major="$(driver_major || true)"
+major="$(driver_major)" || major=""
 if [ -z "$major" ] || [ "$major" -lt 580 ]; then
   echo "当前驱动：${major:-无}，升级到 ${DRIVER_VERSION}"
   apt-get update
-  apt-get install -y build-essential "linux-headers-$(uname -r)"
+  # dkms：内核自动升级后重启时会自动重编驱动模块，不用重新跑 .run
+  apt-get install -y build-essential dkms "linux-headers-$(uname -r)"
   run="/tmp/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
   curl -fL --retry 3 -o "$run" \
     "https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
   systemctl stop nvidia-persistenced 2>/dev/null || true
-  sh "$run" --silent
+  sh "$run" --silent --dkms
   echo
   echo "驱动已安装。请执行 sudo reboot，重启后重新运行本脚本。"
   exit 0
@@ -121,7 +129,13 @@ echo "✅ /data/models /data/results /data/lab /data/prometheus"
 step "6/6 kubeconfig"
 install -d -o "$SUDO_USER" -g "$SUDO_USER" -m 700 "${USER_HOME}/.kube"
 install -o "$SUDO_USER" -g "$SUDO_USER" -m 600 /etc/rancher/k3s/k3s.yaml "${USER_HOME}/.kube/config"
-echo "✅ ${USER_HOME}/.kube/config"
+# 写进 .bashrc 的是字面量 $HOME，由用户登录时展开
+# shellcheck disable=SC2016
+if ! grep -qF 'export KUBECONFIG=$HOME/.kube/config' "${USER_HOME}/.bashrc" 2>/dev/null; then
+  echo 'export KUBECONFIG=$HOME/.kube/config' >> "${USER_HOME}/.bashrc"
+  chown "$SUDO_USER":"$SUDO_USER" "${USER_HOME}/.bashrc"
+fi
+echo "✅ ${USER_HOME}/.kube/config（已在 ~/.bashrc 设置 KUBECONFIG，重新登录或 source ~/.bashrc 后生效）"
 
 echo
 echo "完成。下一步：${LAB_DIR}/scripts/doctor.sh"

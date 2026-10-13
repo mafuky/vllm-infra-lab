@@ -9,6 +9,9 @@
 # 后面几课部署的命名空间存在时，会顺带列出没有就绪的 Pod。
 set -uo pipefail
 
+# k3s 自带的 kubectl 在没有 KUBECONFIG 时读 root 才能读的 /etc/rancher/k3s/k3s.yaml
+export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
+
 ok() { echo "✅ $*"; }
 bad() { echo "❌ $1"; [ -n "${2:-}" ] && echo "   → $2"; }
 

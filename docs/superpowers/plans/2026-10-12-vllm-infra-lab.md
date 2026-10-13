@@ -158,7 +158,7 @@ git add -A && git commit -m "chore: 搭建仓库骨架和镜像锁定检查"
 
 - [ ] **Step 1: `setup-node.sh`**
 
-优云智算虚机以 `ubuntu` 用户登录，脚本用 `sudo` 运行。依次：检查以 root 运行且 `SUDO_USER` 非空；`nvidia-smi` 不可用或驱动低于 580 时：apt 安装 `build-essential` 和 `linux-headers-$(uname -r)`，从 `https://download.nvidia.com/XFree86/Linux-x86_64/580.178.04/` 下载 `NVIDIA-Linux-x86_64-580.178.04.run` 静默安装（出厂的 570 驱动是 `.run` 装的，不能混用 apt 的驱动包；`.run` 会自动卸载旧版），提示重启后重新运行本脚本并退出；驱动 ≥ 580 时打印版本继续；按 NVIDIA 官方 apt 源安装 `nvidia-container-toolkit=1.17.8-1`；把 `registries.yaml` 复制到 `/etc/rancher/k3s/registries.yaml`；用 rancher 国内镜像安装脚本装 k3s（`INSTALL_K3S_MIRROR=cn INSTALL_K3S_VERSION=v1.31.6+k3s1`）；创建 `/data/models`、`/data/results`、`/data/lab`（属主 `SUDO_USER`）和 `/data/prometheus`（属主 65534）；把 `/etc/rancher/k3s/k3s.yaml` 复制到 `/home/$SUDO_USER/.kube/config` 并改属主，之后 `ubuntu` 用户不加 sudo 也能用 kubectl。
+优云智算虚机以 `ubuntu` 用户登录，脚本用 `sudo` 运行。依次：检查以 root 运行且 `SUDO_USER` 非空；`nvidia-smi` 不可用或驱动低于 580 时：apt 安装 `build-essential` 和 `linux-headers-$(uname -r)`，从 `https://download.nvidia.com/XFree86/Linux-x86_64/580.178.04/` 下载 `NVIDIA-Linux-x86_64-580.178.04.run` 静默安装（出厂的 570 驱动是 `.run` 装的，不能混用 apt 的驱动包；`.run` 会自动卸载旧版），提示重启后重新运行本脚本并退出；驱动 ≥ 580 时打印版本继续；按 NVIDIA 官方 apt 源安装 `nvidia-container-toolkit=1.20.1-1`；把 `registries.yaml` 复制到 `/etc/rancher/k3s/registries.yaml`；用 rancher 国内镜像安装脚本装 k3s（`INSTALL_K3S_MIRROR=cn INSTALL_K3S_VERSION=v1.35.8+k3s1`）；创建 `/data/models`、`/data/results`、`/data/lab`（属主 `SUDO_USER`）和 `/data/prometheus`（属主 65534）；把 `/etc/rancher/k3s/k3s.yaml` 复制到 `/home/$SUDO_USER/.kube/config` 并改属主，之后 `ubuntu` 用户不加 sudo 也能用 kubectl。
 
 - [ ] **Step 2: `registries.yaml` 和 `runtimeclass.yaml`**
 
@@ -484,7 +484,7 @@ Expected: FAIL，`ModuleNotFoundError`。
 
 - [ ] **Step 3: 实现 `gateway_probe.py` 和 `cost.py`**
 
-`probe` 用 `httpx.AsyncClient` 加 `asyncio.Semaphore(concurrency)` 发 `POST /v1/chat/completions`（`max_tokens: 64`，`stream: false`），记录状态码、后端标识和耗时；网络异常记为 status 0。`summarize` 中非 200 计入 `error`，200 无标识计入 `unknown`。CLI 写结果前创建 `--out` 的父目录。`cost.py` 对非正的吞吐、利用率、单价抛 `ValueError`。
+`probe` 用 `httpx.AsyncClient` 加 `asyncio.Semaphore(concurrency)` 发 `POST /v1/chat/completions`（默认约 1000 token 输入、`max_tokens: 256`、`stream: false`，与压测同形状，开头带随机串避开前缀缓存；连接上限跟随并发数。2026-10-13 整体审查发现原先的短请求不会让 vLLM 排队，超时切换触发不了），记录状态码、后端标识和耗时；网络异常记为 status 0。`summarize` 中非 200 计入 `error`，200 无标识计入 `unknown`。CLI 写结果前创建 `--out` 的父目录。`cost.py` 对非正的吞吐、利用率、单价抛 `ValueError`。
 
 - [ ] **Step 4: 运行测试，确认通过**
 
@@ -555,7 +555,7 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 
 - [ ] **Step 1:** 把 `litellm-config.yaml` 的 `timeout` 设为拐点并发下 E2E P95 的 1.5 倍（向上取整到秒），apply `litellm-config.yaml`、`litellm.yaml`。先单发一个请求确认响应头里有 `x-litellm-model-id: self-hosted`；没有的话换用 LiteLLM 当前版本返回的标识字段，同步修改 `backend_from_headers` 及其测试。
 - [ ] **Step 1b（可选，约 5 分钟）:** 核实 `max_parallel_requests` 的行为：在 `qwen3-8b` 组临时加 `max_parallel_requests: 2`，用并发 6 发 12 个请求。没有请求转到 `bailian` 就说明它只让请求排队、不触发 fallback，在第 5 课讲解中写明这个实测结论；然后删掉该配置。
-- [ ] **Step 2:** 超载演示（bench-client 镜像里如果没有 httpx，先在 Pod 内 `pip install httpx`）：`kubectl -n infer exec deploy/bench-client -- python3 /lab/scripts/gateway_probe.py --base-url http://litellm.gateway:4000 --model qwen3-8b --total 300 --concurrency <拐点的 2 倍> --out /results/gateway/overload.json`。Expected: 汇总里 `bailian` 计数大于 0。
+- [ ] **Step 2:** 超载演示。先用 `--total 20 --concurrency 8` 冒烟一次，确认响应头标识正常；探测请求默认与压测同形状（约 1000 token 输入、256 输出）。如果正式运行后 `bailian` 仍为 0，就先在后台对 vLLM 直接加压（`CONCURRENCIES=128 scripts/bench.sh overload-bg http://vllm.infer:8000 qwen3-8b &`），再经网关探测。正式命令：`kubectl -n infer exec deploy/bench-client -- python3 /lab/scripts/gateway_probe.py --base-url http://litellm.gateway:4000 --model qwen3-8b --total 300 --concurrency <拐点的 2 倍> --out /results/gateway/overload.json`。Expected: 汇总里 `bailian` 计数大于 0。
 - [ ] **Step 3:** 故障演示：`kubectl -n infer scale deploy/vllm --replicas=0` 后用并发 4、共 40 个请求探测（`--out /results/gateway/vllm-down.json`）。Expected: 全部 `bailian`。恢复 replicas=1 并等 Ready 后再测一次（`vllm-back.json`），Expected: 全部 `self-hosted`。
 - [ ] **Step 4:** 看板面板⑧有数据则截图；没有则说明 LiteLLM 指标不可用，删除面板⑧、把 `test_dashboard_identity` 改为 7 个面板并提交。
 - [ ] **Step 5（可砍）:** `.venv/bin/python scripts/cost.py --bench results/bench/baseline/c<拐点>.json --gpu-price <实付单价> --input-price <百炼> --output-price <百炼> > results/cost.md`。
