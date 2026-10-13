@@ -1,0 +1,51 @@
+# 第 4 课 · 压测客户端
+#
+# 一个不占 GPU、一直挂着的 Pod，里面是和服务端同版本的 vLLM，用它自带的 vllm bench serve 压测。
+# 客户端和服务端在同一台机器上，测出来的延迟不含公网抖动，几轮实验之间才可比。
+#
+# 挂载三个宿主机目录：
+#   /models       分词器（random 数据集要用它把随机 token 数准）
+#   /results      压测结果直接写到宿主机的 /data/results，每天 rsync 回 Mac
+#   /lab/scripts  仓库里的脚本（第 5 课的 gateway_probe.py 在这里跑）
+#
+#   kubectl apply -f lessons/04-loadtest/bench-client.yaml
+#
+# 压测命令见 scripts/bench.sh。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-client
+  namespace: infer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bench-client
+  template:
+    metadata:
+      labels:
+        app: bench-client
+    spec:
+      containers:
+        - name: bench
+          image: vllm/vllm-openai:v0.30.0
+          command: ["sleep", "infinity"]
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: results
+              mountPath: /results
+            - name: scripts
+              mountPath: /lab/scripts
+              readOnly: true
+      volumes:
+        - name: models
+          hostPath:
+            path: /data/models
+        - name: results
+          hostPath:
+            path: /data/results
+        - name: scripts
+          hostPath:
+            path: /data/lab/scripts
