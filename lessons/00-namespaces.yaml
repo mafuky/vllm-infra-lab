@@ -1,0 +1,42 @@
+# 第 0 课 · 四个命名空间
+#
+# ── 你在做什么 ────────────────────────────────────────────────
+#
+# 整个项目跑在一台机器的单节点 k3s 上，按职责分成四个命名空间：
+#
+#   gpu         设备插件、DCGM Exporter：让 K8s 认识 GPU、看得见 GPU
+#   infer       vLLM、压测客户端、实验用的小模型
+#   gateway     LiteLLM 网关
+#   monitoring  Prometheus、Grafana
+#
+# ── 为什么要分 ────────────────────────────────────────────────
+#
+# 分开以后，「推理服务挂了」和「监控挂了」在 kubectl get pods -A 里一眼就能分清；
+# 删掉某一课的实验（kubectl delete ns gateway）也不会误伤别的组件。
+#
+# ── 怎么执行 ──────────────────────────────────────────────────
+#
+#   kubectl apply -f lessons/00-namespaces.yaml
+#
+# ── 应该看到什么 ──────────────────────────────────────────────
+#
+#   kubectl get ns   里多出 gpu、infer、gateway、monitoring 四行，状态 Active。
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gpu
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: infer
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateway
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
