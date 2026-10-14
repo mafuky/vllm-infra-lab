@@ -1,0 +1,26 @@
+Wed Oct 14 16:13:53 CST 2026
+NAME                            READY   STATUS    RESTARTS   AGE
+bench-client-5bbd6bbc7f-bz5ml   1/1     Running   0          16m
+vllm-small-a-794dd5b5f8-d8xgd   1/1     Running   0          5m52s
+vllm-small-b-5dd7df477f-lzd82   1/1     Running   0          5m51s
+Wed Oct 14 16:13:53 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.178.04             Driver Version: 580.178.04     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 4090        On  |   00000000:00:03.0 Off |                  Off |
+| 68%   35C    P8             19W /  450W |   44877MiB /  49140MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A           64092      C   VLLM::EngineCore                      38902MiB |
+|    0   N/A  N/A           64171      C   VLLM::EngineCore                       5960MiB |
++-----------------------------------------------------------------------------------------+
