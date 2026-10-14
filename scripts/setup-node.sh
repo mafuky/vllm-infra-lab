@@ -94,10 +94,12 @@ add_toolkit_repo() {
 if dpkg-query -W -f='${Version}' nvidia-container-toolkit 2>/dev/null | grep -qx "$TOOLKIT_VERSION"; then
   echo "✅ 已安装"
 else
+  # 优云智算的系统镜像里删掉了这个目录，不建的话写源列表会失败
+  mkdir -p /etc/apt/sources.list.d /usr/share/keyrings
   # 官方源在 GitHub Pages 上，国内经常连不上，失败就换中科大的镜像
   add_toolkit_repo https://nvidia.github.io/libnvidia-container \
     || add_toolkit_repo https://mirrors.ustc.edu.cn/libnvidia-container \
-    || die "两个 toolkit 软件源都连不上"
+    || die "两个 toolkit 软件源都配置失败，看上面的报错"
   apt-get update
   apt-get install -y \
     "nvidia-container-toolkit=${TOOLKIT_VERSION}" \
