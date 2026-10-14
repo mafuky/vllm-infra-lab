@@ -6,7 +6,7 @@
 
 - 设计文档已获作者认可：`docs/superpowers/specs/2026-10-12-vllm-infra-lab-design.md`。
 - 第一周实施计划已获认可，执行方式为在当前会话直接实现（executing-plans），最后派一个审查 Agent 整体检查：`docs/superpowers/plans/2026-10-12-vllm-infra-lab.md`。动手前先通读这两份文档，技术决定以它们为准；计划中对规格书的两处调整（成本按单请求比较、网关切换靠超时）以计划为准。
-- GPU 实例已开通并完成检查（任务 7 Step 2）。任务 1-6 在 Mac 上完成，任务 8-13 由作者在 GPU 机器上执行。
+- GPU 实例已开通并完成检查（任务 7 Step 1-3）。任务 1-6 在 Mac 上完成，任务 8-13 由作者在 GPU 机器上执行。第 2 天按「先无卡模式装 k3s、拉镜像、下模型，再有卡模式装驱动」的顺序做（任务 8 Step 0），`setup-node.sh` 检测不到 GPU 时会自动跳过驱动。
 - 项目已延长为两周。第二周设计文档已按 2026-10-13 的探测结果更新，待作者评审：`docs/superpowers/specs/2026-10-13-vllm-infra-lab-week2-design.md`（SGLang 对比与 Agent 式负载、冷启动、KEDA 扩缩容、vLLM 源码笔记）。第二周的实施计划在评审通过后另写。
 
 ## 背景

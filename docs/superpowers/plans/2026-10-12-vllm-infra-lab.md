@@ -517,14 +517,15 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 
 ### Task 7: 第 1 天收尾——开通 GPU 实例
 
-- [ ] **Step 1:** Mac 上执行 `scripts/check-images.sh`。Expected: 所有镜像存在；不存在的按 Global Constraints 的规则替换，`make check` 后提交。
+- [x] **Step 1（2026-10-14 已完成：7 个镜像全部存在）:** Mac 上执行 `scripts/check-images.sh`。Expected: 所有镜像存在；不存在的按 Global Constraints 的规则替换，`make check` 后提交。
 - [x] **Step 2（2026-10-13 已完成：上海 RTX 4090 48G，root 可用，驱动 570.153.02，系统盘可用 83G，内存 94Gi。写 `results/00-instance.md` 时不要写密码和 IP）:** 在优云智算开一台 RTX 4090 单卡实例，计费选**按量付费**（只有按量实例能在关机时切到 0.15 元/小时的无卡模式），镜像选**系统镜像 Ubuntu 22.04**，创建页如有预装 NVIDIA 驱动的选项则选 570 或更高版本（系统镜像是虚机；CUDA、PyTorch 等基础镜像和社区镜像是容器，不能装 Docker 和 k3s，不要选）。按实例详情页「登录指令」中的主机和端口登录（华北一C 等无公网 IP 的地域是映射端口，不一定是 22），用户 `ubuntu`；先用控制台密码登录，再 `ssh-copy-id` 加公钥；在 Mac 的 `~/.ssh/config` 里配好别名并写进 `.env` 的 `GPU_HOST`。确认：`sudo -i` 能拿到 root；`nvidia-smi` 有没有输出（没有说明需要装驱动，第 2 天由 `setup-node.sh` 处理），有则记下驱动版本；`df -h` 中可用空间不少于 80GB（三个模型约 26GB，加上 vLLM 等镜像）；关机后是否计费（查文档或客服）。写入 `results/00-instance.md`。如果登录用户是 root 且端口是 23，说明开成了容器实例，删除后按上面的要求重开。
 - [x] **Step 3（2026-10-13 已完成：百炼已不提供 qwen3-8b，降级目标改为 qwen3.8-flash，北京地域输入 0.8 元、输出 2.7 元 / 百万 token，价格页 https://help.aliyun.com/zh/model-studio/model-pricing）:** 查百炼是否提供 `qwen3-8b` 及其输入、输出单价，连同查询日期和价格页链接写入 `results/00-instance.md`。
 - [ ] **Step 4:** `ssh $GPU_HOST 'sudo mkdir -p /data/lab && sudo chown ubuntu:ubuntu /data/lab'`，然后 `rsync -av --exclude .venv --exclude .env ./ $GPU_HOST:/data/lab/`，并在服务器上手动建 `/data/lab/.env`。
 
 ### Task 8: 第 2 天——第 1 课
 
-- [ ] **Step 1:** `sudo /data/lab/scripts/setup-node.sh`，然后 `scripts/doctor.sh`。Expected: 驱动、toolkit、k3s、RuntimeClass 全部 ✅。
+- [ ] **Step 0（无卡模式）:** 无卡模式开机，`sudo /data/lab/scripts/setup-node.sh`。Expected: 第 1 步提示检测不到 GPU 并跳过，toolkit、k3s、目录、kubeconfig 装好。然后预拉镜像 `grep -rhoE 'image: *[^ ]+' /data/lab/lessons | awk '{print $2}' | sort -u | xargs -n1 sudo k3s crictl pull`（走 CRI，才会用 registries.yaml 的加速），并 `scripts/download-model.sh Qwen/Qwen3-1.7B Qwen/Qwen3-8B Qwen/Qwen3-8B-AWQ`。完成后关机，切回有卡模式开机。
+- [ ] **Step 1:** `sudo /data/lab/scripts/setup-node.sh`（装驱动，重启后再跑一次），然后 `scripts/doctor.sh`。Expected: 驱动、toolkit、k3s、RuntimeClass 全部 ✅。
 - [ ] **Step 2:** apply `00-namespaces.yaml`、`runtimeclass.yaml`、exclusive 配置和 `device-plugin.yaml`。Expected: `kubectl get node -o jsonpath='{.items[0].status.allocatable}'` 含 `"nvidia.com/gpu":"1"`。保存输出到 `results/01-gpu/allocatable.txt`。
 - [ ] **Step 3:** apply `gpu-hog-a.yaml` 和 `gpu-hog-b.yaml`。Expected: a Running 且日志有 `GPU 0: NVIDIA GeForce RTX 4090`；b Pending，`kubectl describe` 含 `Insufficient nvidia.com/gpu`。保存到 `results/01-gpu/pending.txt` 并截图。删除两个 Pod。
 - [ ] **Step 4（可砍）:** `download-model.sh Qwen/Qwen3-1.7B`；apply timeslice 配置并 `kubectl -n gpu rollout restart ds`。Expected: allocatable 变为 2。apply `timeslice-vllm.yaml`，两个都 Ready。
