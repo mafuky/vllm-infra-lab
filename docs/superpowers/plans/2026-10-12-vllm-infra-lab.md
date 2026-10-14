@@ -528,8 +528,8 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 - [x] **Step 1（2026-10-14 已完成：驱动 580.178.04 / CUDA 13.0，doctor 四项 ✅）:** `sudo /data/lab/scripts/setup-node.sh`（装驱动，重启后再跑一次），然后 `scripts/doctor.sh`。Expected: 驱动、toolkit、k3s、RuntimeClass 全部 ✅。
 - [x] **Step 2（2026-10-14 已完成）:** apply `00-namespaces.yaml`、`runtimeclass.yaml`、exclusive 配置和 `device-plugin.yaml`。Expected: `kubectl get node -o jsonpath='{.items[0].status.allocatable}'` 含 `"nvidia.com/gpu":"1"`。保存输出到 `results/01-gpu/allocatable.txt`。
 - [x] **Step 3（2026-10-14 已完成，文本证据在 results/01-gpu/pending.txt，截图未做）:** apply `gpu-hog-a.yaml` 和 `gpu-hog-b.yaml`。Expected: a Running 且日志有 `GPU 0: NVIDIA GeForce RTX 4090`；b Pending，`kubectl describe` 含 `Insufficient nvidia.com/gpu`。保存到 `results/01-gpu/pending.txt` 并截图。删除两个 Pod。
-- [ ] **Step 4（可砍；2026-10-14 已验证切换后 allocatable 变为 2，存于 results/01-gpu/allocatable-timeslice.txt，已切回 exclusive；两个 vLLM 实例待 vLLM 镜像拉完再做）:** `download-model.sh Qwen/Qwen3-1.7B`；apply timeslice 配置并 `kubectl -n gpu rollout restart ds`。Expected: allocatable 变为 2。apply `timeslice-vllm.yaml`，两个都 Ready。
-- [ ] **Step 5（可砍）:** 先只对 a 跑 `CONCURRENCIES=16 TOKENIZER=/models/Qwen3-1.7B scripts/bench.sh ts-single http://vllm-small-a.infer:8000 qwen3-1.7b`，再两个同时跑（label `ts-shared-a`、`ts-shared-b`）。然后按讲解把两个实例改成 0.9，保存第二个实例的 OOM 日志到 `results/01-gpu/oom.log`。恢复 exclusive 配置并删除两个实例。
+- [x] **Step 4（2026-10-14 已完成；两个实例同时启动时 a 因显存测量互相干扰重启过一次，见 startup-race-a.log）:** `download-model.sh Qwen/Qwen3-1.7B`；apply timeslice 配置并 `kubectl -n gpu rollout restart ds`。Expected: allocatable 变为 2。apply `timeslice-vllm.yaml`，两个都 Ready。
+- [x] **Step 5（2026-10-14 已完成；实测没有 OOM 崩溃，而是后测量的实例 KV Cache 只剩 8,512 token，日志为 overcommit-{a,b}.log，讲解已按实测更新）:** 先只对 a 跑 `CONCURRENCIES=16 TOKENIZER=/models/Qwen3-1.7B scripts/bench.sh ts-single http://vllm-small-a.infer:8000 qwen3-1.7b`，再两个同时跑（label `ts-shared-a`、`ts-shared-b`）。然后按讲解把两个实例改成 0.9，保存第二个实例的 OOM 日志到 `results/01-gpu/oom.log`。恢复 exclusive 配置并删除两个实例。
 
 ### Task 9: 第 3 天——第 2 课
 
@@ -559,7 +559,7 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 - [ ] **Step 2:** 超载演示。先用 `--total 20 --concurrency 8` 冒烟一次，确认响应头标识正常；探测请求默认与压测同形状（约 1000 token 输入、256 输出）。如果正式运行后 `bailian` 仍为 0，就先在后台对 vLLM 直接加压（`CONCURRENCIES=128 scripts/bench.sh overload-bg http://vllm.infer:8000 qwen3-8b &`），再经网关探测。正式命令：`kubectl -n infer exec deploy/bench-client -- python3 /lab/scripts/gateway_probe.py --base-url http://litellm.gateway:4000 --model qwen3-8b --total 300 --concurrency <拐点的 2 倍> --out /results/gateway/overload.json`。Expected: 汇总里 `bailian` 计数大于 0。
 - [ ] **Step 3:** 故障演示：`kubectl -n infer scale deploy/vllm --replicas=0` 后用并发 4、共 40 个请求探测（`--out /results/gateway/vllm-down.json`）。Expected: 全部 `bailian`。恢复 replicas=1 并等 Ready 后再测一次（`vllm-back.json`），Expected: 全部 `self-hosted`。
 - [ ] **Step 4:** 看板面板⑧有数据则截图；没有则说明 LiteLLM 指标不可用，删除面板⑧、把 `test_dashboard_identity` 改为 7 个面板并提交。
-- [ ] **Step 5（可砍）:** `.venv/bin/python scripts/cost.py --bench results/bench/baseline/c<拐点>.json --gpu-price <实付单价> --input-price <百炼> --output-price <百炼> > results/cost.md`。
+- [x] **Step 5（2026-10-14 已完成；实测没有 OOM 崩溃，而是后测量的实例 KV Cache 只剩 8,512 token，日志为 overcommit-{a,b}.log，讲解已按实测更新）:** `.venv/bin/python scripts/cost.py --bench results/bench/baseline/c<拐点>.json --gpu-price <实付单价> --input-price <百炼> --output-price <百炼> > results/cost.md`。
 
 ### Task 13: 第 7 天——整理结果
 
