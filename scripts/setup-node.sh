@@ -7,6 +7,9 @@
 #
 # 脚本可以反复运行，已经完成的步骤会跳过。
 #
+# 省钱的跑法：先用无卡模式（0.15 元/小时）开机跑一遍，检测不到 GPU 时会跳过驱动，把 toolkit、k3s、目录装好，
+# 接着拉镜像、下模型；再切回有卡模式开机重跑一遍，只剩装驱动这一步要按 3.17 元/小时计费。
+#
 # ── 它做了什么 ────────────────────────────────────────────────
 #
 #   1. 驱动：出厂是 570，vLLM v0.30.0 的镜像基于 CUDA 13，要求 580 以上。
@@ -48,23 +51,35 @@ driver_major() {
   echo "${v%%.*}"
 }
 
+# 无卡模式开机时虚机上没有 GPU，nvidia-smi 必然报错，驱动也装不了（.run 装完要试加载内核模块，没卡会失败）。
+# 按 PCI 厂商号判断卡在不在，不依赖驱动：0x10de 是 NVIDIA
+has_nvidia_gpu() {
+  grep -qsx 0x10de "${PCI_DEVICES_DIR:-/sys/bus/pci/devices}"/*/vendor
+}
+
 step "1/6 NVIDIA 驱动"
-major="$(driver_major)" || major=""
-if [ -z "$major" ] || [ "$major" -lt 580 ]; then
-  echo "当前驱动：${major:-无}，升级到 ${DRIVER_VERSION}"
-  apt-get update
-  # dkms：内核自动升级后重启时会自动重编驱动模块，不用重新跑 .run
-  apt-get install -y build-essential dkms "linux-headers-$(uname -r)"
-  run="/tmp/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
-  curl -fL --retry 3 -o "$run" \
-    "https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
-  systemctl stop nvidia-persistenced 2>/dev/null || true
-  sh "$run" --silent --dkms
-  echo
-  echo "驱动已安装。请执行 sudo reboot，重启后重新运行本脚本。"
-  exit 0
+cardless=0
+if ! has_nvidia_gpu; then
+  cardless=1
+  echo "⚠️  检测不到 GPU（无卡模式开机），跳过驱动，先装其余组件"
+else
+  major="$(driver_major)" || major=""
+  if [ -z "$major" ] || [ "$major" -lt 580 ]; then
+    echo "当前驱动：${major:-无}，升级到 ${DRIVER_VERSION}"
+    apt-get update
+    # dkms：内核自动升级后重启时会自动重编驱动模块，不用重新跑 .run
+    apt-get install -y build-essential dkms "linux-headers-$(uname -r)"
+    run="/tmp/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+    curl -fL --retry 3 -o "$run" \
+      "https://download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+    systemctl stop nvidia-persistenced 2>/dev/null || true
+    sh "$run" --silent --dkms
+    echo
+    echo "驱动已安装。请执行 sudo reboot，重启后重新运行本脚本。"
+    exit 0
+  fi
+  echo "✅ 驱动 $(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -1)"
 fi
-echo "✅ 驱动 $(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -1)"
 
 step "2/6 NVIDIA Container Toolkit ${TOOLKIT_VERSION}"
 runtime_changed=0
@@ -138,4 +153,8 @@ fi
 echo "✅ ${USER_HOME}/.kube/config（已在 ~/.bashrc 设置 KUBECONFIG，重新登录或 source ~/.bashrc 后生效）"
 
 echo
-echo "完成。下一步：${LAB_DIR}/scripts/doctor.sh"
+if [ "$cardless" -eq 1 ]; then
+  echo "完成，但驱动还没装（无卡模式）。现在可以拉镜像、下模型；切回有卡模式开机后重跑本脚本。"
+else
+  echo "完成。下一步：${LAB_DIR}/scripts/doctor.sh"
+fi

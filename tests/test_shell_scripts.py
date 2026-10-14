@@ -73,3 +73,26 @@ def test_download_skips_when_marked_complete(tmp_path):
     (models / "Qwen3-8B").mkdir(parents=True)
     (models / "Qwen3-8B" / ".download-complete").write_text("")
     assert _run_download(tmp_path, models) == ""
+
+
+def _has_nvidia_gpu(tmp_path, vendors):
+    pci = tmp_path / "pci"
+    for i, vendor in enumerate(vendors):
+        (pci / f"0000:00:0{i}.0").mkdir(parents=True)
+        (pci / f"0000:00:0{i}.0" / "vendor").write_text(vendor + "\n")
+    pci.mkdir(exist_ok=True)
+    func = subprocess.run(["sed", "-n", "/^has_nvidia_gpu()/,/^}/p", str(SCRIPTS / "setup-node.sh")],
+                          capture_output=True, text=True, check=True).stdout
+    assert func, "setup-node.sh 里找不到 has_nvidia_gpu 函数"
+    env = dict(os.environ, PCI_DEVICES_DIR=str(pci))
+    return subprocess.run(["bash", "-c", func + "\nhas_nvidia_gpu"], capture_output=True, text=True, env=env)
+
+
+def test_gpu_detected_by_pci_vendor(tmp_path):
+    # 0x10de 是 NVIDIA 的 PCI 厂商号；不依赖驱动，驱动坏了也能判断卡在不在
+    assert _has_nvidia_gpu(tmp_path, ["0x1af4", "0x10de"]).returncode == 0
+
+
+def test_no_gpu_in_cardless_mode(tmp_path):
+    # 无卡模式开机时虚机上只剩 virtio 等设备
+    assert _has_nvidia_gpu(tmp_path, ["0x1af4", "0x8086"]).returncode != 0
