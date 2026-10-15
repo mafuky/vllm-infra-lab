@@ -1,0 +1,131 @@
+# 第 2 课 · 把 Qwen3-8B 跑成一个服务
+#
+# 60 分钟（其中下载模型约 20 分钟，可以在无卡模式下提前做）。
+#
+# ── 你在做什么 ────────────────────────────────────────────────
+#
+# 业务方现在调百炼的接口。这一课部署一个和 OpenAI 接口兼容的 vLLM 服务，
+# 业务代码只要把 base_url 换成 http://vllm.infer:8000/v1，模型名写 qwen3-8b，就能切过来。
+#
+# ── 先算一笔账：一张卡能同时服务多少个请求 ────────────────────
+#
+# 显存里装两样东西：模型权重，和每个请求的 KV Cache（已经算过的 token 的 K、V，避免重复计算）。
+#
+#   权重：8.2B 参数 × 2 字节（BF16）≈ 16GB，固定不变。
+#   每个 token 的 KV Cache = 2（K 和 V）× 36 层 × 8 个 KV 头 × 128 维 × 2 字节
+#                         = 147,456 字节 ≈ 144KB
+#
+# 这台机器是 48G 的 4090。这里故意把 --gpu-memory-utilization 设成 0.45：
+#
+#   48GB × 0.45 ≈ 21.6GB，和一张 24G 卡跑 0.9 时一样。
+#   21.6GB − 16GB 权重 − 约 2GB 激活和 CUDA Graph ≈ 3-4GB 给 KV Cache ≈ 2-3 万个 token。
+#   每个请求按 1,300 个 token（输入 1024 + 输出 256）算，同时只能服务二十来个，再多就排队。
+#
+# 为什么要限制？显存给足 0.9 的话 KV Cache 能装下十几万个 token，拐点会跑到上百并发，
+# 第 4 课 1 到 64 并发的压测里根本看不到排队，告警也不会触发。
+# 限制显存让 KV Cache 成为瓶颈，是为了在可控的并发范围内看清「容量决定并发上限」；
+# 第 4 课还会放开到 0.9 做对照，看拐点往后挪了多少。
+#
+# 启动日志里有一行 KV Cache 的实际容量（token 数），抄进 results/02-vllm/kv-capacity.txt，
+# 和上面的估算对一下：差得多的话，想想是哪一项估错了。
+#
+# ── 为什么是 Recreate ─────────────────────────────────────────
+#
+# 默认的滚动更新会先起新 Pod、等它就绪再删旧 Pod。可机器上只有一张卡，旧 Pod 占着它，
+# 新 Pod 永远 Pending，改了参数 apply 下去「没有任何反应」。Recreate 先删再建，
+# 代价是更新期间服务中断一两分钟（加载模型的时间），对单卡实验可以接受。
+#
+# ── 怎么执行 ──────────────────────────────────────────────────
+#
+#   scripts/download-model.sh Qwen/Qwen3-8B Qwen/Qwen3-8B-AWQ
+#   kubectl apply -f lessons/02-vllm/vllm-qwen3-8b.yaml
+#   kubectl -n infer logs -f deploy/vllm          # 等到出现 Application startup complete
+#
+# 验证接口（在节点上，或进任意 Pod）：
+#
+#   curl http://vllm.infer:8000/v1/chat/completions -H 'Content-Type: application/json' -d '{
+#     "model": "qwen3-8b",
+#     "messages": [{"role": "user", "content": "用一句话介绍你自己"}],
+#     "chat_template_kwargs": {"enable_thinking": false}
+#   }'
+#
+# 最后核对指标名，确认第 3 课的看板和告警能查到数据：
+#
+#   curl -s http://vllm.infer:8000/metrics > results/02-vllm/metrics.txt
+#   python3 scripts/check_metrics.py results/02-vllm/metrics.txt lessons/03-monitoring/expected-metrics.txt
+#
+# 此时 DCGM 还没部署，只看 vllm: 开头的部分。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: infer
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      # Service 叫 vllm，K8s 会给 Pod 注入 VLLM_PORT=tcp://IP:8000，和 vLLM 自己读的 VLLM_PORT 撞名，
+      # 引擎启动时报 VLLM_PORT appears to be a URI 退出。集群内用 DNS 访问服务，这些变量用不上，直接关掉
+      enableServiceLinks: false
+      runtimeClassName: nvidia
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.30.0
+          command: ["vllm", "serve"]
+          args: ["/models/Qwen3-8B", "--served-model-name", "qwen3-8b",
+                 "--max-model-len", "8192", "--gpu-memory-utilization", "0.45",
+                 "--enable-prefix-caching", "--port", "8000"]
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 5
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: models
+          hostPath:
+            path: /data/models
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  namespace: infer
+spec:
+  selector:
+    app: vllm
+  ports:
+    - port: 8000
+      targetPort: 8000

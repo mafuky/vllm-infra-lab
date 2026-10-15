@@ -1,0 +1,2 @@
+INFO 10-15 14:13:46 [gpu_worker.py:640] Available KV cache memory: 25.49 GiB
+INFO 10-15 14:13:46 [kv_cache_utils.py:2395] GPU KV cache size: 185,568 tokens, Maximum concurrency for 8,192 tokens per request: 22.65x

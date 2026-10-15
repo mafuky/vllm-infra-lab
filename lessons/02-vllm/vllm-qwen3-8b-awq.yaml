@@ -1,0 +1,89 @@
+# 第 4 课（可砍）· 量化换并发：Qwen3-8B-AWQ
+#
+# 和 vllm-qwen3-8b.yaml 是同名资源（Deployment vllm、Service vllm），二选一 apply；
+# apply 这个文件就会把正在跑的 BF16 版本替换掉，做完记得 apply 回 vllm-qwen3-8b.yaml。
+#
+# ── 你在做什么 ────────────────────────────────────────────────
+#
+# AWQ 把权重压到 4bit，8B 模型从约 16GB 降到约 6GB。显存占比同样是 0.45（约 21.6GB），
+# 腾出来的约 10GB 全部给 KV Cache，能同时服务的请求数是 BF16 版本的好几倍。
+# 代价是生成质量可能略有下降，以及反量化带来的额外计算。
+#
+# 用第 4 课同一套压测（label 写 awq）跑一轮，和 baseline 对比高并发下的吞吐和 TTFT：
+# 「量化换并发」是推理优化里最经典的取舍，面试时用这组数据讲。
+#
+# ── 应该看到什么 ──────────────────────────────────────────────
+#
+# 启动日志里的 KV Cache 容量明显大于 BF16 版本；32、64 并发时排队明显减少。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: infer
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      enableServiceLinks: false
+      runtimeClassName: nvidia
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.30.0
+          command: ["vllm", "serve"]
+          args: ["/models/Qwen3-8B-AWQ", "--served-model-name", "qwen3-8b",
+                 "--max-model-len", "8192", "--gpu-memory-utilization", "0.45",
+                 "--enable-prefix-caching", "--port", "8000"]
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 5
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: models
+          hostPath:
+            path: /data/models
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  namespace: infer
+spec:
+  selector:
+    app: vllm
+  ports:
+    - port: 8000
+      targetPort: 8000

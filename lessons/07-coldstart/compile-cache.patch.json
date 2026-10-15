@@ -1,0 +1,5 @@
+[
+  {"op": "add", "path": "/spec/template/spec/containers/0/env", "value": [{"name": "VLLM_CACHE_ROOT", "value": "/cache/vllm"}]},
+  {"op": "add", "path": "/spec/template/spec/containers/0/volumeMounts/-", "value": {"name": "vllm-cache", "mountPath": "/cache/vllm"}},
+  {"op": "add", "path": "/spec/template/spec/volumes/-", "value": {"name": "vllm-cache", "hostPath": {"path": "/data/cache/vllm", "type": "DirectoryOrCreate"}}}
+]

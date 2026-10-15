@@ -1,0 +1,109 @@
+# 告警规则的单元测试：promtool test rules lessons/03-monitoring/rules/vllm-alerts.test.yaml
+#
+# 用造出来的时间序列验证三件事：该响的时候响、不该响的时候不响、没数据的时候不乱响。
+# 最后两个用例（no_traffic、vllm_absent）固定了一个已知边界：
+# 没有流量或 vLLM 挂掉时，三条告警都不会触发。服务挂掉靠 doctor.sh 和网关 fallback 兜底。
+rule_files:
+  - vllm-alerts.yaml
+
+evaluation_interval: 15s
+
+tests:
+  - name: kv_fires
+    interval: 15s
+    input_series:
+      - series: 'vllm:kv_cache_usage_perc{model_name="qwen3-8b"}'
+        values: '0.95x20'
+    alert_rule_test:
+      - eval_time: 30s
+        alertname: KVCacheNearFull
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: KVCacheNearFull
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "KV Cache 占用超过 90%，新请求即将排队或触发抢占。先看排队数和并发是否突增，再考虑扩容或限流。"
+
+  - name: kv_below
+    interval: 15s
+    input_series:
+      - series: 'vllm:kv_cache_usage_perc{model_name="qwen3-8b"}'
+        values: '0.85x20'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: KVCacheNearFull
+        exp_alerts: []
+
+  - name: queue_fires
+    interval: 15s
+    input_series:
+      - series: 'vllm:num_requests_waiting{model_name="qwen3-8b"}'
+        values: '6x20'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: RequestQueueBacklog
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "排队请求超过 5 个，容量已经不够。先确认网关是否在把溢出流量切到百炼，再看是否需要扩容。"
+
+  - name: queue_at_threshold
+    interval: 15s
+    input_series:
+      - series: 'vllm:num_requests_waiting{model_name="qwen3-8b"}'
+        values: '5x20'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: RequestQueueBacklog
+        exp_alerts: []
+
+  - name: ttft_fires
+    interval: 15s
+    input_series:
+      - series: 'vllm:time_to_first_token_seconds_bucket{le="2.5"}'
+        values: '0x30'
+      - series: 'vllm:time_to_first_token_seconds_bucket{le="5"}'
+        values: '0+10x30'
+      - series: 'vllm:time_to_first_token_seconds_bucket{le="+Inf"}'
+        values: '0+10x30'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: TTFTP95High
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "首字延迟 P95 超过 2 秒，用户已经明显感觉到慢。先看排队数和 KV Cache 占用，确认是容量不足还是单个请求过长。"
+
+  - name: no_traffic
+    interval: 15s
+    input_series:
+      - series: 'vllm:time_to_first_token_seconds_bucket{le="2.5"}'
+        values: '100x30'
+      - series: 'vllm:time_to_first_token_seconds_bucket{le="5"}'
+        values: '100x30'
+      - series: 'vllm:time_to_first_token_seconds_bucket{le="+Inf"}'
+        values: '100x30'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: TTFTP95High
+        exp_alerts: []
+
+  - name: vllm_absent
+    interval: 15s
+    input_series:
+      - series: 'up{job="something-else"}'
+        values: '1x30'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: KVCacheNearFull
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: RequestQueueBacklog
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: TTFTP95High
+        exp_alerts: []

@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - 第一周完成；第一周 GPU 费用约 80 元，超过 80 元停止可砍项；两周合计不超过 150 元。装软件、下模型、拉镜像等不需要 GPU 的活放在无卡模式（0.15 元/小时）下做。
-- 硬件：优云智算上海 RTX 4090 48G 单卡（14 核、96GB 内存，Ubuntu-nvidia 22.04 虚机，按量 3.17 元/小时，出厂驱动 570.153.02，系统盘可用 83GB）；开发机 Mac 只写配置、脚本、画图。
+- 硬件：优云智算华北二A RTX 4090 48G 单卡（14 核、96GB 内存，Ubuntu-nvidia 22.04 虚机，按量 3.17 元/小时，出厂驱动 570.153.02，系统盘可用 83GB）；开发机 Mac 只写配置、脚本、画图。
 - 命名空间固定为 `gpu`、`infer`、`gateway`、`monitoring`；模型目录固定为宿主机 `/data/models`，从 ModelScope 下载。
 - 主模型 `Qwen/Qwen3-8B`（BF16），对照 `Qwen/Qwen3-8B-AWQ`；time-slicing 实验用 `Qwen/Qwen3-1.7B`。
 - vLLM 基线参数：`--max-model-len 8192`、`--gpu-memory-utilization 0.45`（48G × 0.45 ≈ 21.6GB，等同 24G 卡跑 0.9）、开启前缀缓存。另做一组 0.90 的不限显存对照。
@@ -158,7 +158,7 @@ git add -A && git commit -m "chore: 搭建仓库骨架和镜像锁定检查"
 
 - [ ] **Step 1: `setup-node.sh`**
 
-优云智算虚机以 `ubuntu` 用户登录，脚本用 `sudo` 运行。依次：检查以 root 运行且 `SUDO_USER` 非空；`nvidia-smi` 不可用或驱动低于 580 时：apt 安装 `build-essential` 和 `linux-headers-$(uname -r)`，从 `https://download.nvidia.com/XFree86/Linux-x86_64/580.178.04/` 下载 `NVIDIA-Linux-x86_64-580.178.04.run` 静默安装（出厂的 570 驱动是 `.run` 装的，不能混用 apt 的驱动包；`.run` 会自动卸载旧版），提示重启后重新运行本脚本并退出；驱动 ≥ 580 时打印版本继续；按 NVIDIA 官方 apt 源安装 `nvidia-container-toolkit=1.17.8-1`；把 `registries.yaml` 复制到 `/etc/rancher/k3s/registries.yaml`；用 rancher 国内镜像安装脚本装 k3s（`INSTALL_K3S_MIRROR=cn INSTALL_K3S_VERSION=v1.31.6+k3s1`）；创建 `/data/models`、`/data/results`、`/data/lab`（属主 `SUDO_USER`）和 `/data/prometheus`（属主 65534）；把 `/etc/rancher/k3s/k3s.yaml` 复制到 `/home/$SUDO_USER/.kube/config` 并改属主，之后 `ubuntu` 用户不加 sudo 也能用 kubectl。
+优云智算虚机以 `ubuntu` 用户登录，脚本用 `sudo` 运行。依次：检查以 root 运行且 `SUDO_USER` 非空；`nvidia-smi` 不可用或驱动低于 580 时：apt 安装 `build-essential` 和 `linux-headers-$(uname -r)`，从 `https://download.nvidia.com/XFree86/Linux-x86_64/580.178.04/` 下载 `NVIDIA-Linux-x86_64-580.178.04.run` 静默安装（出厂的 570 驱动是 `.run` 装的，不能混用 apt 的驱动包；`.run` 会自动卸载旧版），提示重启后重新运行本脚本并退出；驱动 ≥ 580 时打印版本继续；按 NVIDIA 官方 apt 源安装 `nvidia-container-toolkit=1.20.1-1`；把 `registries.yaml` 复制到 `/etc/rancher/k3s/registries.yaml`；用 rancher 国内镜像安装脚本装 k3s（`INSTALL_K3S_MIRROR=cn INSTALL_K3S_VERSION=v1.35.8+k3s1`）；创建 `/data/models`、`/data/results`、`/data/lab`（属主 `SUDO_USER`）和 `/data/prometheus`（属主 65534）；把 `/etc/rancher/k3s/k3s.yaml` 复制到 `/home/$SUDO_USER/.kube/config` 并改属主，之后 `ubuntu` 用户不加 sudo 也能用 kubectl。
 
 - [ ] **Step 2: `registries.yaml` 和 `runtimeclass.yaml`**
 
@@ -484,7 +484,7 @@ Expected: FAIL，`ModuleNotFoundError`。
 
 - [ ] **Step 3: 实现 `gateway_probe.py` 和 `cost.py`**
 
-`probe` 用 `httpx.AsyncClient` 加 `asyncio.Semaphore(concurrency)` 发 `POST /v1/chat/completions`（`max_tokens: 64`，`stream: false`），记录状态码、后端标识和耗时；网络异常记为 status 0。`summarize` 中非 200 计入 `error`，200 无标识计入 `unknown`。CLI 写结果前创建 `--out` 的父目录。`cost.py` 对非正的吞吐、利用率、单价抛 `ValueError`。
+`probe` 用 `httpx.AsyncClient` 加 `asyncio.Semaphore(concurrency)` 发 `POST /v1/chat/completions`（默认约 1000 token 输入、`max_tokens: 256`、`stream: false`，与压测同形状，开头带随机串避开前缀缓存；连接上限跟随并发数。2026-10-13 整体审查发现原先的短请求不会让 vLLM 排队，超时切换触发不了），记录状态码、后端标识和耗时；网络异常记为 status 0。`summarize` 中非 200 计入 `error`，200 无标识计入 `unknown`。CLI 写结果前创建 `--out` 的父目录。`cost.py` 对非正的吞吐、利用率、单价抛 `ValueError`。
 
 - [ ] **Step 4: 运行测试，确认通过**
 
@@ -495,8 +495,8 @@ Expected: 6 passed。
 
 以 `../agent-cost-loop/k8s/10-litellm-config.yaml`、`30-litellm.yaml` 为起点。`litellm-config.yaml`（ConfigMap，命名空间 `gateway`）：
 - 模型组 `qwen3-8b`：`model: hosted_vllm/qwen3-8b`，`api_base: http://vllm.infer:8000/v1`，`timeout: 30`（任务 12 按实测改），`extra_body: {chat_template_kwargs: {enable_thinking: false}}`，`model_info.id: self-hosted`。
-- 模型组 `qwen3-8b-bailian`：`model: openai/qwen3-8b`，`api_base: https://dashscope.aliyuncs.com/compatible-mode/v1`，`api_key: os.environ/DASHSCOPE_API_KEY`，`extra_body: {enable_thinking: false}`，`model_info.id: bailian`。
-- `router_settings`：`fallbacks: [{"qwen3-8b": ["qwen3-8b-bailian"]}]`，`num_retries: 0`。
+- 模型组 `bailian-flash`：`model: openai/qwen3.8-flash`（百炼已不提供 qwen3-8b，2026-10-13 确认），`api_base: https://dashscope.aliyuncs.com/compatible-mode/v1`，`api_key: os.environ/DASHSCOPE_API_KEY`，`extra_body: {enable_thinking: false}`，`model_info.id: bailian`。
+- `router_settings`：`fallbacks: [{"qwen3-8b": ["bailian-flash"]}]`，`num_retries: 0`。
 - `general_settings.master_key: os.environ/LITELLM_MASTER_KEY`。
 
 讲解写清切换机制：vLLM 过载时不拒绝请求而是排队，排队导致请求超过 `timeout`，LiteLLM 把超时请求转给百炼。这里没有采用规格书写的「并发上限」：LiteLLM v1.102.1 的 `router.py` 用 `asyncio.Semaphore` 实现 `max_parallel_requests`，超出的请求在网关排队等待，不会触发 fallback（2026-10-13 查源码确认，任务 12 的 Step 1b 可再实测佐证）。
@@ -517,53 +517,54 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 
 ### Task 7: 第 1 天收尾——开通 GPU 实例
 
-- [ ] **Step 1:** Mac 上执行 `scripts/check-images.sh`。Expected: 所有镜像存在；不存在的按 Global Constraints 的规则替换，`make check` 后提交。
-- [x] **Step 2（2026-10-13 已完成：上海 RTX 4090 48G，root 可用，驱动 570.153.02，系统盘可用 83G，内存 94Gi。写 `results/00-instance.md` 时不要写密码和 IP）:** 在优云智算开一台 RTX 4090 单卡实例，计费选**按量付费**（只有按量实例能在关机时切到 0.15 元/小时的无卡模式），镜像选**系统镜像 Ubuntu 22.04**，创建页如有预装 NVIDIA 驱动的选项则选 570 或更高版本（系统镜像是虚机；CUDA、PyTorch 等基础镜像和社区镜像是容器，不能装 Docker 和 k3s，不要选）。按实例详情页「登录指令」中的主机和端口登录（华北一C 等无公网 IP 的地域是映射端口，不一定是 22），用户 `ubuntu`；先用控制台密码登录，再 `ssh-copy-id` 加公钥；在 Mac 的 `~/.ssh/config` 里配好别名并写进 `.env` 的 `GPU_HOST`。确认：`sudo -i` 能拿到 root；`nvidia-smi` 有没有输出（没有说明需要装驱动，第 2 天由 `setup-node.sh` 处理），有则记下驱动版本；`df -h` 中可用空间不少于 80GB（三个模型约 26GB，加上 vLLM 等镜像）；关机后是否计费（查文档或客服）。写入 `results/00-instance.md`。如果登录用户是 root 且端口是 23，说明开成了容器实例，删除后按上面的要求重开。
-- [ ] **Step 3:** 查百炼是否提供 `qwen3-8b` 及其输入、输出单价，连同查询日期和价格页链接写入 `results/00-instance.md`。
-- [ ] **Step 4:** `ssh $GPU_HOST 'sudo mkdir -p /data/lab && sudo chown ubuntu:ubuntu /data/lab'`，然后 `rsync -av --exclude .venv --exclude .env ./ $GPU_HOST:/data/lab/`，并在服务器上手动建 `/data/lab/.env`。
+- [x] **Step 1（2026-10-14 已完成：7 个镜像全部存在）:** Mac 上执行 `scripts/check-images.sh`。Expected: 所有镜像存在；不存在的按 Global Constraints 的规则替换，`make check` 后提交。
+- [x] **Step 2（2026-10-13 已完成：华北二A RTX 4090 48G，root 可用，驱动 570.153.02，系统盘可用 83G，内存 94Gi。写 `results/00-instance.md` 时不要写密码和 IP）:** 在优云智算开一台 RTX 4090 单卡实例，计费选**按量付费**（只有按量实例能在关机时切到 0.15 元/小时的无卡模式），镜像选**系统镜像 Ubuntu 22.04**，创建页如有预装 NVIDIA 驱动的选项则选 570 或更高版本（系统镜像是虚机；CUDA、PyTorch 等基础镜像和社区镜像是容器，不能装 Docker 和 k3s，不要选）。按实例详情页「登录指令」中的主机和端口登录（华北一C 等无公网 IP 的地域是映射端口，不一定是 22），用户 `ubuntu`；先用控制台密码登录，再 `ssh-copy-id` 加公钥；在 Mac 的 `~/.ssh/config` 里配好别名并写进 `.env` 的 `GPU_HOST`。确认：`sudo -i` 能拿到 root；`nvidia-smi` 有没有输出（没有说明需要装驱动，第 2 天由 `setup-node.sh` 处理），有则记下驱动版本；`df -h` 中可用空间不少于 80GB（三个模型约 26GB，加上 vLLM 等镜像）；关机后是否计费（查文档或客服）。写入 `results/00-instance.md`。如果登录用户是 root 且端口是 23，说明开成了容器实例，删除后按上面的要求重开。
+- [x] **Step 3（2026-10-13 已完成：百炼已不提供 qwen3-8b，降级目标改为 qwen3.8-flash，北京地域输入 0.8 元、输出 2.7 元 / 百万 token，价格页 https://help.aliyun.com/zh/model-studio/model-pricing）:** 查百炼是否提供 `qwen3-8b` 及其输入、输出单价，连同查询日期和价格页链接写入 `results/00-instance.md`。
+- [x] **Step 4（2026-10-14 已完成，别名 gpu4090）:** `ssh $GPU_HOST 'sudo mkdir -p /data/lab && sudo chown ubuntu:ubuntu /data/lab'`，然后 `rsync -av --exclude .venv --exclude .env ./ $GPU_HOST:/data/lab/`，并在服务器上手动建 `/data/lab/.env`。
 
 ### Task 8: 第 2 天——第 1 课
 
-- [ ] **Step 1:** `sudo /data/lab/scripts/setup-node.sh`，然后 `scripts/doctor.sh`。Expected: 驱动、toolkit、k3s、RuntimeClass 全部 ✅。
-- [ ] **Step 2:** apply `00-namespaces.yaml`、`runtimeclass.yaml`、exclusive 配置和 `device-plugin.yaml`。Expected: `kubectl get node -o jsonpath='{.items[0].status.allocatable}'` 含 `"nvidia.com/gpu":"1"`。保存输出到 `results/01-gpu/allocatable.txt`。
-- [ ] **Step 3:** apply `gpu-hog-a.yaml` 和 `gpu-hog-b.yaml`。Expected: a Running 且日志有 `GPU 0: NVIDIA GeForce RTX 4090`；b Pending，`kubectl describe` 含 `Insufficient nvidia.com/gpu`。保存到 `results/01-gpu/pending.txt` 并截图。删除两个 Pod。
-- [ ] **Step 4（可砍）:** `download-model.sh Qwen/Qwen3-1.7B`；apply timeslice 配置并 `kubectl -n gpu rollout restart ds`。Expected: allocatable 变为 2。apply `timeslice-vllm.yaml`，两个都 Ready。
-- [ ] **Step 5（可砍）:** 先只对 a 跑 `CONCURRENCIES=16 TOKENIZER=/models/Qwen3-1.7B scripts/bench.sh ts-single http://vllm-small-a.infer:8000 qwen3-1.7b`，再两个同时跑（label `ts-shared-a`、`ts-shared-b`）。然后按讲解把两个实例改成 0.9，保存第二个实例的 OOM 日志到 `results/01-gpu/oom.log`。恢复 exclusive 配置并删除两个实例。
+- [x] **Step 0（2026-10-14 实际在有卡模式下做完：三个模型已下载；除 vLLM 外的镜像已预拉，vLLM 镜像约 10GB，公共镜像站实测最快约 3MB/s）:** 无卡模式开机，`sudo /data/lab/scripts/setup-node.sh`。Expected: 第 1 步提示检测不到 GPU 并跳过，toolkit、k3s、目录、kubeconfig 装好。然后预拉镜像 `grep -rhoE 'image: *[^ ]+' /data/lab/lessons | awk '{print $2}' | sort -u | xargs -n1 sudo k3s crictl pull`（走 CRI，才会用 registries.yaml 的加速），并 `scripts/download-model.sh Qwen/Qwen3-1.7B Qwen/Qwen3-8B Qwen/Qwen3-8B-AWQ`。完成后关机，切回有卡模式开机。
+- [x] **Step 1（2026-10-14 已完成：驱动 580.178.04 / CUDA 13.0，doctor 四项 ✅）:** `sudo /data/lab/scripts/setup-node.sh`（装驱动，重启后再跑一次），然后 `scripts/doctor.sh`。Expected: 驱动、toolkit、k3s、RuntimeClass 全部 ✅。
+- [x] **Step 2（2026-10-14 已完成）:** apply `00-namespaces.yaml`、`runtimeclass.yaml`、exclusive 配置和 `device-plugin.yaml`。Expected: `kubectl get node -o jsonpath='{.items[0].status.allocatable}'` 含 `"nvidia.com/gpu":"1"`。保存输出到 `results/01-gpu/allocatable.txt`。
+- [x] **Step 3（2026-10-14 已完成，文本证据在 results/01-gpu/pending.txt，截图未做）:** apply `gpu-hog-a.yaml` 和 `gpu-hog-b.yaml`。Expected: a Running 且日志有 `GPU 0: NVIDIA GeForce RTX 4090`；b Pending，`kubectl describe` 含 `Insufficient nvidia.com/gpu`。保存到 `results/01-gpu/pending.txt` 并截图。删除两个 Pod。
+- [x] **Step 4（2026-10-14 已完成；两个实例同时启动时 a 因显存测量互相干扰重启过一次，见 startup-race-a.log）:** `download-model.sh Qwen/Qwen3-1.7B`；apply timeslice 配置并 `kubectl -n gpu rollout restart ds`。Expected: allocatable 变为 2。apply `timeslice-vllm.yaml`，两个都 Ready。
+- [x] **Step 5（2026-10-14 已完成；实测没有 OOM 崩溃，而是后测量的实例 KV Cache 只剩 8,512 token，日志为 overcommit-{a,b}.log，讲解已按实测更新）:** 先只对 a 跑 `CONCURRENCIES=16 TOKENIZER=/models/Qwen3-1.7B scripts/bench.sh ts-single http://vllm-small-a.infer:8000 qwen3-1.7b`，再两个同时跑（label `ts-shared-a`、`ts-shared-b`）。然后按讲解把两个实例改成 0.9，保存第二个实例的 OOM 日志到 `results/01-gpu/oom.log`。恢复 exclusive 配置并删除两个实例。
 
 ### Task 9: 第 3 天——第 2 课
 
-- [ ] **Step 1:** `download-model.sh Qwen/Qwen3-8B Qwen/Qwen3-8B-AWQ`。
-- [ ] **Step 2:** apply `vllm-qwen3-8b.yaml`。Expected: Pod Ready；启动日志中有 KV Cache 容量（token 数），抄进 `results/02-vllm/kv-capacity.txt`，与讲解中的估算对比。
-- [ ] **Step 3:** 在 bench-client 或节点上 `curl http://vllm.infer:8000/v1/chat/completions`，带 `"chat_template_kwargs": {"enable_thinking": false}`。Expected: 返回中文回答。
-- [ ] **Step 4:** `curl -s http://vllm.infer:8000/metrics > results/02-vllm/metrics.txt`，然后 `python3 scripts/check_metrics.py results/02-vllm/metrics.txt lessons/03-monitoring/expected-metrics.txt`（DCGM 指标此时还没有，只看 vLLM 部分）。Expected: vLLM 指标无缺失。有缺失时，用 metrics.txt 里的实际名字更新 `expected-metrics.txt`、告警规则和看板，在 Mac 上跑 `make check` 直到通过再提交。
+- [x] **Step 1（2026-10-14 第 2 天已下载）:** `download-model.sh Qwen/Qwen3-8B Qwen/Qwen3-8B-AWQ`。
+- [x] **Step 2（2026-10-15 已完成：KV Cache 30,352 token，可用 4.17 GiB；首次部署因 Service 注入的 VLLM_PORT 与 vLLM 环境变量撞名而启动失败，已加 enableServiceLinks: false）:** apply `vllm-qwen3-8b.yaml`。Expected: Pod Ready；启动日志中有 KV Cache 容量（token 数），抄进 `results/02-vllm/kv-capacity.txt`，与讲解中的估算对比。
+- [x] **Step 3（2026-10-15 已完成，results/02-vllm/chat.json）:** 在 bench-client 或节点上 `curl http://vllm.infer:8000/v1/chat/completions`，带 `"chat_template_kwargs": {"enable_thinking": false}`。Expected: 返回中文回答。
+- [x] **Step 4（2026-10-15 已完成：vLLM 指标无缺失，只缺第 4 天才部署的 DCGM）:** `curl -s http://vllm.infer:8000/metrics > results/02-vllm/metrics.txt`，然后 `python3 scripts/check_metrics.py results/02-vllm/metrics.txt lessons/03-monitoring/expected-metrics.txt`（DCGM 指标此时还没有，只看 vLLM 部分）。Expected: vLLM 指标无缺失。有缺失时，用 metrics.txt 里的实际名字更新 `expected-metrics.txt`、告警规则和看板，在 Mac 上跑 `make check` 直到通过再提交。
 
 ### Task 10: 第 4 天——第 3 课
 
-- [ ] **Step 1:** `scripts/create-secrets.sh`；apply `prometheus.yaml`、`dcgm-exporter.yaml`、`grafana.yaml`，并按讲解从源文件生成 `prometheus-rules`、`grafana-dashboards`。
-- [ ] **Step 2:** Prometheus 的 Targets 页面中 vLLM 和 DCGM 都是 UP；Rules 页面三条告警都已加载。截图。
-- [ ] **Step 3:** 用 `check_metrics.py` 核对 DCGM 指标（`curl` DCGM 的 9400 端口）。Expected: 无缺失。
-- [ ] **Step 4:** Mac 上通过 SSH 端口转发打开 Grafana 的 `vllm-overview` 看板，面板①到⑦都有数据（⑧等第 6 天）。截图。
+- [x] **Step 1（2026-10-15 已完成）:** `scripts/create-secrets.sh`；apply `prometheus.yaml`、`dcgm-exporter.yaml`、`grafana.yaml`，并按讲解从源文件生成 `prometheus-rules`、`grafana-dashboards`。
+- [x] **Step 2（2026-10-15 已用 API 核对，results/03-monitoring/targets.txt、rules.txt；截图待作者补）:** Prometheus 的 Targets 页面中 vLLM 和 DCGM 都是 UP；Rules 页面三条告警都已加载。截图。
+- [x] **Step 3（2026-10-15 已完成：13 个指标全部存在）:** 用 `check_metrics.py` 核对 DCGM 指标（`curl` DCGM 的 9400 端口）。Expected: 无缺失。
+- [x] **Step 4（2026-10-15 已在并发 16 下逐个查询面板 PromQL，①到⑦都有数据，results/03-monitoring/panels-under-load.txt；截图待作者补）:** Mac 上通过 SSH 端口转发打开 Grafana 的 `vllm-overview` 看板，面板①到⑦都有数据（⑧等第 6 天）。截图。
 
 ### Task 11: 第 5 天——第 4 课
 
-- [ ] **Step 1:** apply `bench-client.yaml`；跑基线 `scripts/bench.sh baseline http://vllm.infer:8000 qwen3-8b`。压到 32、64 并发时，在 Prometheus 告警页截图三条告警进入 firing。
-- [ ] **Step 2:** 依次修改 Deployment 参数后各跑一轮：`full48g`（`--gpu-memory-utilization 0.90`，不限显存的对照，`CONCURRENCIES="1 4 16 32 64 128"`，看 KV Cache 容量翻倍后拐点后移多少）；`util040`（`--gpu-memory-utilization 0.40`）；`seqs16`、`seqs32`、`seqs64`（`--max-num-seqs`）；`prefix-on` 与 `prefix-off`（加 `--no-enable-prefix-caching`），这两轮都用 `--random-prefix-len 512 --random-input-len 512`。
-- [ ] **Step 3（可砍）:** apply `vllm-qwen3-8b-awq.yaml`，label `awq` 跑一轮；结束后换回 BF16。
-- [ ] **Step 4:** Mac 上 `rsync` 结果，执行 `.venv/bin/python scripts/plot.py results/bench results/charts > results/bench/summary.md`。根据曲线定出拐点并发（TTFT P95 开始陡增前的最后一档），写入 `results/bench/knee.md`，附拐点那一档的 E2E P95。
+- [x] **Step 1（2026-10-15 已完成；告警页实时截图没赶上，改用 Prometheus ALERTS 时间线 results/03-monitoring/alerts-day5.txt）:** apply `bench-client.yaml`；跑基线 `scripts/bench.sh baseline http://vllm.infer:8000 qwen3-8b`。压到 32、64 并发时，在 Prometheus 告警页截图三条告警进入 firing。
+- [x] **Step 2（2026-10-15 已完成，8 轮全部 0 失败）:** 依次修改 Deployment 参数后各跑一轮：`full48g`（`--gpu-memory-utilization 0.90`，不限显存的对照，`CONCURRENCIES="1 4 16 32 64 128"`，看 KV Cache 容量翻倍后拐点后移多少）；`util040`（`--gpu-memory-utilization 0.40`）；`seqs16`、`seqs32`、`seqs64`（`--max-num-seqs`）；`prefix-on` 与 `prefix-off`（加 `--no-enable-prefix-caching`），这两轮都用 `--random-prefix-len 512 --random-input-len 512`。
+- [x] **Step 3（2026-10-15 已完成）:** apply `vllm-qwen3-8b-awq.yaml`，label `awq` 跑一轮；结束后换回 BF16。
+- [x] **Step 4（2026-10-15 已完成：拐点并发 16，E2E P95 7.1 秒，见 results/bench/knee.md）:** Mac 上 `rsync` 结果，执行 `.venv/bin/python scripts/plot.py results/bench results/charts > results/bench/summary.md`。根据曲线定出拐点并发（TTFT P95 开始陡增前的最后一档），写入 `results/bench/knee.md`，附拐点那一档的 E2E P95。
 
 ### Task 12: 第 6 天——第 5 课
 
-- [ ] **Step 1:** 把 `litellm-config.yaml` 的 `timeout` 设为拐点并发下 E2E P95 的 1.5 倍（向上取整到秒），apply `litellm-config.yaml`、`litellm.yaml`。先单发一个请求确认响应头里有 `x-litellm-model-id: self-hosted`；没有的话换用 LiteLLM 当前版本返回的标识字段，同步修改 `backend_from_headers` 及其测试。
-- [ ] **Step 1b（可选，约 5 分钟）:** 核实 `max_parallel_requests` 的行为：在 `qwen3-8b` 组临时加 `max_parallel_requests: 2`，用并发 6 发 12 个请求。没有请求转到 `bailian` 就说明它只让请求排队、不触发 fallback，在第 5 课讲解中写明这个实测结论；然后删掉该配置。
-- [ ] **Step 2:** 超载演示（bench-client 镜像里如果没有 httpx，先在 Pod 内 `pip install httpx`）：`kubectl -n infer exec deploy/bench-client -- python3 /lab/scripts/gateway_probe.py --base-url http://litellm.gateway:4000 --model qwen3-8b --total 300 --concurrency <拐点的 2 倍> --out /results/gateway/overload.json`。Expected: 汇总里 `bailian` 计数大于 0。
-- [ ] **Step 3:** 故障演示：`kubectl -n infer scale deploy/vllm --replicas=0` 后用并发 4、共 40 个请求探测（`--out /results/gateway/vllm-down.json`）。Expected: 全部 `bailian`。恢复 replicas=1 并等 Ready 后再测一次（`vllm-back.json`），Expected: 全部 `self-hosted`。
-- [ ] **Step 4:** 看板面板⑧有数据则截图；没有则说明 LiteLLM 指标不可用，删除面板⑧、把 `test_dashboard_identity` 改为 7 个面板并提交。
-- [ ] **Step 5（可砍）:** `.venv/bin/python scripts/cost.py --bench results/bench/baseline/c<拐点>.json --gpu-price <实付单价> --input-price <百炼> --output-price <百炼> > results/cost.md`。
+- [x] **Step 1（2026-10-15 已完成：timeout 11 秒，响应头 x-litellm-model-id: self-hosted）:** 把 `litellm-config.yaml` 的 `timeout` 设为拐点并发下 E2E P95 的 1.5 倍（向上取整到秒），apply `litellm-config.yaml`、`litellm.yaml`。先单发一个请求确认响应头里有 `x-litellm-model-id: self-hosted`；没有的话换用 LiteLLM 当前版本返回的标识字段，同步修改 `backend_from_headers` 及其测试。
+- [ ] **Step 1b（可选，未做：第 1 周已查源码确认是信号量排队）:** 核实 `max_parallel_requests` 的行为：在 `qwen3-8b` 组临时加 `max_parallel_requests: 2`，用并发 6 发 12 个请求。没有请求转到 `bailian` 就说明它只让请求排队、不触发 fallback，在第 5 课讲解中写明这个实测结论；然后删掉该配置。
+- [x] **Step 2（2026-10-15 已完成：300 个请求中 59 个转百炼）:** 超载演示。先用 `--total 20 --concurrency 8` 冒烟一次，确认响应头标识正常；探测请求默认与压测同形状（约 1000 token 输入、256 输出）。如果正式运行后 `bailian` 仍为 0，就先在后台对 vLLM 直接加压（`CONCURRENCIES=128 scripts/bench.sh overload-bg http://vllm.infer:8000 qwen3-8b &`），再经网关探测。正式命令：`kubectl -n infer exec deploy/bench-client -- python3 /lab/scripts/gateway_probe.py --base-url http://litellm.gateway:4000 --model qwen3-8b --total 300 --concurrency <拐点的 2 倍> --out /results/gateway/overload.json`。Expected: 汇总里 `bailian` 计数大于 0。
+- [x] **Step 3（2026-10-15 已完成：下线时 40/40 百炼，恢复后 40/40 自建）:** 故障演示：`kubectl -n infer scale deploy/vllm --replicas=0` 后用并发 4、共 40 个请求探测（`--out /results/gateway/vllm-down.json`）。Expected: 全部 `bailian`。恢复 replicas=1 并等 Ready 后再测一次（`vllm-back.json`），Expected: 全部 `self-hosted`。
+- [x] **Step 4（2026-10-15：LiteLLM /metrics 默认要鉴权，关掉后面板⑧有数据；截图待作者补）:** 看板面板⑧有数据则截图；没有则说明 LiteLLM 指标不可用，删除面板⑧、把 `test_dashboard_identity` 改为 7 个面板并提交。
+- [x] **Step 5（2026-10-15 已完成，盈亏平衡约每天 5 万请求）:** `.venv/bin/python scripts/cost.py --bench results/bench/baseline/c<拐点>.json --gpu-price <实付单价> --input-price <百炼> --output-price <百炼> > results/cost.md`。
 
 ### Task 13: 第 7 天——整理结果
 
-- [ ] **Step 1:** 写 `README.md`：一段话说明场景；架构图（文字版）；版本表；复现步骤（按课）；结果（压测表、曲线图、调参对比、告警截图、切换统计、成本表，全部引用 `results/` 下的文件）；已知边界（服务挂掉时三条告警不触发，靠 doctor 和网关兜底；time-slicing 不隔离显存）。
-- [ ] **Step 2:** 在 README 末尾写简历条目（3-4 条，每条至少一个 `results/` 中的数字）和面试问答（不少于 10 题，覆盖 KV Cache 估算与实测的差异、拐点怎么定、为什么用 Recreate、time-slicing 与 MIG 的区别、告警为什么不盯 GPU 利用率、切换为什么靠超时、成本口径）。
-- [ ] **Step 3:** 核对：README 中的每个数字都能在 `results/` 中找到出处。
-- [ ] **Step 4:** 用 docs 工具把简历条目加进简历在线文档的个人项目部分（链接见 `CLAUDE.md`），只加作者确认过的条目。
-- [ ] **Step 5:** `make check` 通过后提交。
+- [x] **Step 1（2026-10-15）:** 写 `README.md`：一段话说明场景；架构图（文字版）；版本表；复现步骤（按课）；结果（压测表、曲线图、调参对比、告警截图、切换统计、成本表，全部引用 `results/` 下的文件）；已知边界（服务挂掉时三条告警不触发，靠 doctor 和网关兜底；time-slicing 不隔离显存）。
+- [x] **Step 2（2026-10-15）:** 在 README 末尾写简历条目（3-4 条，每条至少一个 `results/` 中的数字）和面试问答（不少于 10 题，覆盖 KV Cache 估算与实测的差异、拐点怎么定、为什么用 Recreate、time-slicing 与 MIG 的区别、告警为什么不盯 GPU 利用率、切换为什么靠超时、成本口径）。
+- [x] **Step 3（2026-10-15，修正了请求总数和一处表述）:** 核对：README 中的每个数字都能在 `results/` 中找到出处。
+- [x] **Step 4（2026-10-15 作者确认后已写入项目 3）:** 用 docs 工具把简历条目加进简历在线文档的个人项目部分（链接见 `CLAUDE.md`），只加作者确认过的条目。
+- [x] **Step 5（2026-10-15）:** `make check` 通过后提交。

@@ -1,0 +1,12 @@
+# 2026-10-15 并发 16 压测进行中，看板各面板的 PromQL 即时值
+首字延迟 TTFT（P50 / P95） | 0.399 |  histogram_quantile(0.5, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket[1m])))
+首字延迟 TTFT（P50 / P95） | 0.696 |  histogram_quantile(0.95, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket[1m])))
+每 token 生成延迟 ITL（P95） | 0.025 |  histogram_quantile(0.95, sum by (le) (rate(vllm:inter_token_latency_seconds_bucket[1m])))
+生成吞吐 | 589.091 |  sum(rate(vllm:generation_tokens_total[1m]))
+运行中 / 排队中的请求 | 16.0 |  sum(vllm:num_requests_running)
+运行中 / 排队中的请求 | 0.0 |  sum(vllm:num_requests_waiting)
+KV Cache 占用率 | 0.566 |  max(vllm:kv_cache_usage_perc)
+GPU 利用率与显存 | 100.0 |  avg(DCGM_FI_DEV_GPU_UTIL)
+GPU 利用率与显存 | 21375.0 |  sum(DCGM_FI_DEV_FB_USED)
+前缀缓存命中率 | 0.0 |  sum(rate(vllm:prefix_cache_hits_total[5m])) / sum(rate(vllm:prefix_cache_queries_total[5m]))
+各后端承接的请求数 | 无数据 |  sum by (model_id) (rate(litellm_deployment_success_responses_total[1m]))

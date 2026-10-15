@@ -1,0 +1,2 @@
+up http://10.42.0.25:9400/metrics
+up http://10.42.0.24:8000/metrics

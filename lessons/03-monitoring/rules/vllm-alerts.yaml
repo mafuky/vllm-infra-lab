@@ -1,0 +1,51 @@
+# 第 3 课 · 三条告警
+#
+# ── 设计原则 ──────────────────────────────────────────────────
+#
+# 告警只盯两类东西：用户已经感受到的「症状」，和马上就要出问题的「先兆」。
+#
+#   KVCacheNearFull      先兆：KV Cache 快满，接下来新请求就要排队，甚至抢占正在生成的请求
+#   RequestQueueBacklog  先兆：已经有请求在排队，容量不够了；也是网关该把流量切走的信号
+#   TTFTP95High          症状：首字延迟 P95 超过 2 秒，用户明显觉得慢
+#
+# 不对「GPU 利用率高」告警：GPU 跑满说明资源用得好，它本身不是问题。
+# 盯着它告警只会制造噪音，让真正要紧的告警被淹没。
+#
+# ── 已知边界 ──────────────────────────────────────────────────
+#
+# vLLM 挂掉时指标直接消失，三条告警都不会触发（rules/vllm-alerts.test.yaml 的 vllm_absent 用例固定了这一点）。
+# 这个项目里服务挂掉由 doctor.sh 和网关 fallback 兜底；生产环境要再加一条 up == 0 或 absent() 的告警。
+#
+# ── 怎么生效 ──────────────────────────────────────────────────
+#
+# 源文件只有这一份，ConfigMap 从它生成：
+#
+#   kubectl -n monitoring create configmap prometheus-rules \
+#     --from-file=lessons/03-monitoring/rules/vllm-alerts.yaml --dry-run=client -o yaml | kubectl apply -f -
+#   kubectl -n monitoring exec deploy/prometheus -- wget -qO- --post-data='' http://localhost:9090/-/reload
+groups:
+  - name: vllm
+    rules:
+      - alert: KVCacheNearFull
+        expr: max(vllm:kv_cache_usage_perc) > 0.9
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "KV Cache 占用超过 90%，新请求即将排队或触发抢占。先看排队数和并发是否突增，再考虑扩容或限流。"
+
+      - alert: RequestQueueBacklog
+        expr: sum(vllm:num_requests_waiting) > 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "排队请求超过 5 个，容量已经不够。先确认网关是否在把溢出流量切到百炼，再看是否需要扩容。"
+
+      - alert: TTFTP95High
+        expr: histogram_quantile(0.95, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket[1m]))) > 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "首字延迟 P95 超过 2 秒，用户已经明显感觉到慢。先看排队数和 KV Cache 占用，确认是容量不足还是单个请求过长。"

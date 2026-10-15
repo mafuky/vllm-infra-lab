@@ -38,7 +38,7 @@
 
 ### 1.4 约束
 
-- GPU：优云智算上海 RTX 4090 48G 单卡（14 核、96GB 内存，Ubuntu-nvidia 22.04 虚机，按量 3.17 元/小时；24G 的 4090、3090 和 5090 在 2026-10-13 均无货）。已确认有 root、可装 k3s；出厂驱动 570.153.02，需升级到 580 才能运行 CUDA 13 的 vLLM 镜像。系统盘可用 83GB。
+- GPU：优云智算华北二A RTX 4090 48G 单卡（14 核、96GB 内存，Ubuntu-nvidia 22.04 虚机，按量 3.17 元/小时；24G 的 4090、3090 和 5090 在 2026-10-13 均无货）。已确认有 root、可装 k3s；出厂驱动 570.153.02，需升级到 580 才能运行 CUDA 13 的 vLLM 镜像。系统盘可用 83GB。
 - 开发机：Mac（M4 Pro，24GB 内存），只写配置、脚本和画图，不跑推理。
 - 学习方式：沿用 sandbox-operator 的风格，讲解写在配置文件和脚本的头部注释里，每课一个目录。作者亲手在 GPU 机器上执行每一课，并记录现象和数据。
 
@@ -176,7 +176,7 @@ Mac（开发机）
 - 以 agent-cost-loop 中 `k8s/10-litellm-config.yaml` 和 `k8s/30-litellm.yaml` 为起点。原配置使用 mock 模型和未锁定的 `main-stable` 镜像，本项目改为真实后端，并锁定镜像版本。
 - 对外暴露一个模型名 `qwen3-8b`：
   - 主部署：自建 vLLM，`api_base` 指向 `http://vllm.infer:8000/v1`，设置 `max_parallel_requests`，取值为第 5 天压测得出的拐点并发数；设置请求超时。
-  - fallback：百炼的同款 Qwen3-8B（OpenAI 兼容端点）。第 1 天确认百炼提供该模型及其价格，没有就用最接近的型号，并在结果中注明。
+  - fallback：百炼的 qwen3.8-flash（OpenAI 兼容端点）。2026-10-13 确认百炼已不提供 Qwen3-8B，改用最便宜的通用文本模型 qwen3.8-flash（北京地域每百万 token 输入 0.8 元、输出 2.7 元），成本对比时注明两边不是同一个模型。原文：第 1 天确认百炼提供该模型及其价格，没有就用最接近的型号，并在结果中注明。
 - 百炼 API Key 存在 K8s Secret 中，仓库只放 `.env.example`，`.gitignore` 排除真实配置。
 
 **演示两种切换**
@@ -257,4 +257,4 @@ vllm-infra-lab/
 1. 优云智算实例类型：是否有 root，能否安装 Docker 和 k3s；关机后是否还收费。
 2. 驱动版本和 CUDA 版本，是否满足所选 vLLM 版本的要求。
 3. 锁定版本号：vLLM 镜像、NVIDIA device plugin、DCGM Exporter、Prometheus、Grafana、LiteLLM。
-4. 百炼是否提供 Qwen3-8B，以及每百万 token 的输入和输出价格。
+4. 百炼是否提供 Qwen3-8B，以及每百万 token 的输入和输出价格。（2026-10-13 已确认：不提供，改用 qwen3.8-flash，0.8 / 2.7 元。）

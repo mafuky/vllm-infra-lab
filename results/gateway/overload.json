@@ -1,0 +1,1517 @@
+{
+  "summary": {
+    "self-hosted": 241,
+    "bailian": 59
+  },
+  "args": {
+    "base_url": "http://litellm.gateway:4000",
+    "model": "qwen3-8b",
+    "total": 300,
+    "concurrency": 32,
+    "prompt_tokens": 1000,
+    "max_tokens": 256,
+    "out": "/results/gateway/overload.json"
+  },
+  "results": [
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.929690773002221
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.643475949997082
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.484883747998538
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.277851008999278
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.75262354699953
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.019595762998506
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.276130333000765
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.43221693400119
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 3.9646357299970987
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.88490579900099
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.855716414000199
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.481723984001292
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.431193242002337
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.641557024999202
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.065786777999165
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.066591309001524
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.852433675998327
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.01617807599905
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.771429610002087
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.691165899002954
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.219387438999547
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.691548122002132
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.881298568998318
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.903801650998503
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 15.056672724000236
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.696966342999076
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.873325784999906
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.446326048000628
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 11.85349801600023
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 15.167506694997428
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.035660318000737
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.65054341799987
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.163464745000965
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.487454573001742
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.46450901100252
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.377854066999134
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.376530498000648
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.449651233000623
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.44807492399923
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.453361749998294
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.450294548001693
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.24171920200024
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.241762369998469
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.45147183500012
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.240942356998858
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.452731383000355
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.240649454997765
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.45283284100151
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.455183794998447
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.245328873999824
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.249216175001493
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.452116290998674
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.457638512998528
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.455148894998274
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.457224612000573
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.455138329001784
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.357313273998443
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.211370606000855
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.730711759999394
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.115886861000035
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.924860112001625
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 11.486340899002244
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 26.41108986999825
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.23265692899804
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.808417226999154
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.724158629996964
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.722235370001727
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.80621230899851
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 7.0257816720004485
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.812283849998494
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.81007746600153
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.729915898002218
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.729806988998462
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.730108833999111
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.727993272001186
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.732645343003242
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.730722798998613
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.73615907599742
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.733510136000405
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.733588547002
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.731490873000439
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.564375721998658
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.229545972000778
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.62328380100007
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 15.150808313999732
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.192350026001805
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.270224610001605
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 16.295083347999025
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 20.3223069630003
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.481156104000547
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.04119735399945
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.491130332000466
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.467032102998928
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.587528685002326
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.69353417199818
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.508655901001475
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.691665035003098
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.689617411000654
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.774928225000622
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.774836707998475
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.782629199999064
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.782550436000747
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.84030730700033
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.78458391499953
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.992995143998996
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.77854850299991
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.985471329000575
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.847627659000864
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.789719147000142
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.266592129002674
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.313239184997656
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.311313690999668
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.977908618002402
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.834161611997843
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.606533788999513
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.977949346000969
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.6901778499996
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.044843312000012
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.576429654000094
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.148319926000113
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.334923960999731
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.12301753200154
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.211380131000624
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.31364265999946
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.212359101999027
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.427026307999768
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.218414488001144
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.431752137999865
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.221716562999063
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.431859504002205
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.218918432001374
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.42480801200145
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.211290715997166
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 2.8101114599994617
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.192018088000623
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.208863948999351
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.460792090001632
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.820427924001706
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.946944780000194
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 15.148053868997522
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.244681199001207
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.258297166001284
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.78184289300043
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.238457262999873
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.052592956999433
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 27.583917805000965
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.31933235500037
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.414290740998695
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.390659239001252
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.598138721001305
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.388810519998515
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.392693641002552
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.600283560001117
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.600814822999382
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.389589442002034
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.604580830000486
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.388319429999683
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.608011383003031
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.387469460998545
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.60473318699951
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.392780500998924
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.328164265996747
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.391462866999063
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.508924939000281
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.634284293999372
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.781891578000796
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.751916281999002
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 11.620710029001202
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.289424266000424
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.530957974999183
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.347511287000088
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.25879459800126
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.311678312998993
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.217682915001205
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.167425775001902
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.70080540699928
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.899516599998606
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.065075475999038
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.856517349999194
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.043988543999149
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.252547439002228
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.043423925999377
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.261238819002756
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.267097148000175
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.052680340999359
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.059636189998855
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.269342474999576
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.10854735799876
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.264648165000835
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.262017714998365
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.04093715700219
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.300411997999618
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 11.81920301199716
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.207796648999647
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.647224501000892
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.233683174999896
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 11.978012748000765
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.74924369799919
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.41649146599957
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.31500604699977
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.409461843999452
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.839178514001105
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.1802101760004
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.362076437999349
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.152425060998212
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.275613911999244
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.485292338002182
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.493931869001244
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.2777567919984
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.502323482000065
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.285485409000103
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.500813062000816
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.290196533998824
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 2.806057993999275
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.491190975997597
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.490342763001536
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.277911282999412
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.394494317999488
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 18.89380983099909
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 16.06715577900104
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.977358054999058
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 25.11076358700302
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.337633432001894
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.250037282999983
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.823758407997957
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 11.528427834997274
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 11.007856983000238
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.567709543000092
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.08525110499977
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.18534134500078
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.18332747200111
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.265057110998896
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.265038355999422
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.479541850003443
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.265472187998967
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.261671475996991
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.27218907200222
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.485725161001028
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.490910795000673
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.274994679999509
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.485378147001029
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.273308256000746
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.268907116002083
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.475361042997974
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.499431229000038
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.839119195999956
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 11.010475090999535
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.349000419999356
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.800377798001136
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 11.602823332999833
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.986106594002194
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.634147400000074
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.07640001999971
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.878038340000785
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.854099583000789
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.060296700001345
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.937103344000207
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.145495451997704
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.058533213999908
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.147833641000034
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.145631446001062
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.153574471998581
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.1513842509994
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.159080290002748
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.156979262999812
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.204581747999327
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.363784269000462
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.154165053001634
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.35962618999838
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.14883081699736
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.43077181300032
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 9.147825301999546
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.772973205999733
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.173828978000529
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.645619394999812
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 13.548575718999928
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.218050671002857
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 15.72808705600255
+    },
+    {
+      "status": 200,
+      "backend": "bailian",
+      "latency_s": 14.701779929997429
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.792193935001706
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 10.286232473001292
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.718607768001675
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 3.740471280998463
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.539719475997117
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.535426662001555
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.557768588001636
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.351420619001146
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.37269038299928
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.184009898999648
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 8.163747522001358
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 7.993720121001388
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 7.974218849998579
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 7.79831957100032
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 7.778042139001627
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 7.580422423998243
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 7.598106481000286
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 7.45614432399816
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 7.402086294001492
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 7.690376940001443
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 7.8102284250016965
+    }
+  ]
+}

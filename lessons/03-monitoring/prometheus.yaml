@@ -1,0 +1,174 @@
+# 第 3 课 · 出问题时第一时间知道
+#
+# 50 分钟。这一课部署 Prometheus（采集和告警）、DCGM Exporter（GPU 指标）、Grafana（看板）。
+#
+# ── 你在做什么 ────────────────────────────────────────────────
+#
+# 服务上线后，你要能回答三个问题：现在快不快、还能不能接更多请求、卡本身正不正常。
+# Prometheus 每 5 秒从 vLLM、DCGM、LiteLLM 各拉一次指标存起来，按告警规则判断要不要报警；
+# Grafana 把这些指标画成看板，按「用户体验 → 吞吐 → 容量 → 硬件」的排查顺序从上往下排。
+#
+# ── 为什么不用 Prometheus Operator ────────────────────────────
+#
+# 生产上常用 kube-prometheus-stack（Prometheus Operator），一次装好 Prometheus、Alertmanager、
+# node-exporter、kube-state-metrics 等五六个组件，用 ServiceMonitor 这类 CRD 声明采集目标。
+# 这里直接写 Prometheus 的配置文件：组件少、每一行都看得懂。
+# 采集目标靠 Pod 上的注解自动发现：
+#
+#   prometheus.io/scrape: "true"    要不要采
+#   prometheus.io/port: "8000"      哪个端口
+#   prometheus.io/path: /metrics    哪个路径
+#
+# vLLM、DCGM、LiteLLM 的 Pod 都带了这三个注解，新加一个服务只要加注解，不用改 Prometheus。
+# Operator 做的事本质一样，只是把「采集目标」从注解换成了 ServiceMonitor 对象。
+#
+# ── 怎么执行 ──────────────────────────────────────────────────
+#
+#   scripts/create-secrets.sh                                   # Grafana 管理员密码等
+#   kubectl -n monitoring create configmap prometheus-rules \
+#     --from-file=lessons/03-monitoring/rules/vllm-alerts.yaml --dry-run=client -o yaml | kubectl apply -f -
+#   kubectl -n monitoring create configmap grafana-dashboards \
+#     --from-file=lessons/03-monitoring/dashboards/vllm-overview.json --dry-run=client -o yaml | kubectl apply -f -
+#   kubectl apply -f lessons/03-monitoring/prometheus.yaml
+#   kubectl apply -f lessons/03-monitoring/dcgm-exporter.yaml
+#   kubectl apply -f lessons/03-monitoring/grafana.yaml
+#
+# ── 应该看到什么 ──────────────────────────────────────────────
+#
+#   kubectl -n monitoring port-forward svc/prometheus 9090      # 服务器上
+#   ssh -L 9090:localhost:9090 $GPU_HOST                        # Mac 上，浏览器开 http://localhost:9090
+#
+#   Status → Targets：vLLM 和 DCGM 都是 UP
+#   Alerts：三条告警都已加载，平时是 Inactive；第 4 课压测时会变成 Pending、Firing
+#
+# 改了告警规则后重新生成 ConfigMap，再让 Prometheus 重新加载（不用重启）：
+#   kubectl -n monitoring exec deploy/prometheus -- wget -qO- --post-data='' http://localhost:9090/-/reload
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "endpoints", "services"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: monitoring
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 5s
+      evaluation_interval: 15s
+    rule_files:
+      - /etc/prometheus/rules/*.yaml
+    scrape_configs:
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      securityContext:
+        runAsUser: 65534
+        runAsGroup: 65534
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v3.15.0
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time=7d
+            - --web.enable-lifecycle
+          ports:
+            - containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            periodSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+            - name: rules
+              mountPath: /etc/prometheus/rules
+            - name: data
+              mountPath: /prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        - name: rules
+          configMap:
+            name: prometheus-rules
+            optional: true
+        - name: data
+          hostPath:
+            path: /data/prometheus
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090
