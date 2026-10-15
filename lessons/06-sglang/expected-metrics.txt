@@ -1,0 +1,4 @@
+sglang:max_total_num_tokens
+sglang:num_running_reqs
+sglang:num_queue_reqs
+sglang:cache_hit_rate
