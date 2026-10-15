@@ -45,3 +45,13 @@ def test_scaledobject_follows_spec():
                    'threshold: "5"', "stabilizationWindowSeconds: 300", "serverAddress: http://prometheus.monitoring:9090",
                    "name: vllm"]:
         assert needle in text, needle
+
+
+def test_sglang_readiness_does_not_generate():
+    # SGLang 的 /health 会真的生成 1 个 token：探针要排在推理队列后面，默认 1 秒超时必挂，
+    # 高并发压测时 Pod 会被摘出 Service、请求全部失败。就绪探针改用不做推理的 /v1/models
+    doc = _sglang_doc()
+    readiness = doc[doc.index("readinessProbe:"):]
+    startup = doc[doc.index("startupProbe:"):doc.index("readinessProbe:")]
+    assert "path: /v1/models" in readiness.split("volumeMounts:")[0]
+    assert "timeoutSeconds: 10" in startup

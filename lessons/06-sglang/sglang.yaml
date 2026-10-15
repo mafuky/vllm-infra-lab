@@ -30,9 +30,13 @@
 #
 # 做完切回 vLLM：sglang 缩到 0，vllm 扩到 1。
 #
+# 注意：这个文件写的是 replicas: 0。改了配置重新 apply 时，副本数会被改回 0，Pod 直接没了，
+# 要再 kubectl scale --replicas=1 一次（2026-10-16 第 9 天实际踩过）。
+#
 # ── 应该看到什么 ──────────────────────────────────────────────
 #
 # 启动日志里有 max_total_num_tokens（KV 池能放多少 token），和 30,352 的偏差在 10% 以内。
+# 2026-10-16 实测：0.42 一次对齐，32,116 token（+5.8%），K、V 各 2.21GB。
 # /metrics 有 sglang: 开头的指标（核对清单 lessons/06-sglang/expected-metrics.txt）。
 # 压测 5 档全部 0 失败，和 results/bench/baseline 放在一张表里对比；KV 容量写在表头，说明对比是否公平。
 apiVersion: apps/v1
@@ -71,15 +75,21 @@ spec:
           resources:
             limits:
               nvidia.com/gpu: 1
+          # SGLang 的 /health 会真的跑一次 1 个 token 的生成（日志里每次探测都有一行 Prefill batch #new-token: 1），
+          # 要排在推理队列后面、耗时约 1 秒，K8s 默认 1 秒超时会让它反复失败。
+          # 启动探针仍用 /health（确认模型真能生成），超时放宽到 10 秒；
+          # 就绪探针改用不做推理的 /v1/models：否则高并发压测时探测请求排队超时，Pod 被摘出 Service，压测请求全部失败。
+          # vLLM 的 /health 不做推理，没有这个问题。
           startupProbe:
             httpGet:
               path: /health
               port: 8000
             periodSeconds: 10
+            timeoutSeconds: 10
             failureThreshold: 60
           readinessProbe:
             httpGet:
-              path: /health
+              path: /v1/models
               port: 8000
             periodSeconds: 5
           volumeMounts:
