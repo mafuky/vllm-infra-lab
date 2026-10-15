@@ -16,6 +16,11 @@
 # 结果写到宿主机 /data/results/bench/<label>/c<c>.json。环境变量：
 #   CONCURRENCIES  并发档位，默认 "1 4 16 32 64"
 #   TOKENIZER      分词器目录，默认 /models/Qwen3-8B
+#   SEED           随机种子基数，默认取当前时间；每档并发用 SEED + 并发数
+#
+# 种子必须每档不同：vllm bench serve 的 --seed 默认是 0，每档都会生成同一批「随机」提示词，
+# 开着前缀缓存时上一档的提示词还在缓存里，下一档直接命中，TTFT 被低估。
+# 2026-10-15 第 5 天的第一批结果就踩了这个坑：随机负载本该 0% 命中，实测 4%~10%。
 #
 # random 数据集走 /v1/completions，不经过聊天模板，Qwen3 的思考模式不会掺进来，几轮之间可比。
 #
@@ -47,17 +52,18 @@ label="$1"; base_url="$2"; model="$3"; shift 3
 
 CONCURRENCIES="${CONCURRENCIES:-1 4 16 32 64}"
 TOKENIZER="${TOKENIZER:-/models/Qwen3-8B}"
+SEED="${SEED:-$(date +%s)}"
 
 kubectl -n infer exec deploy/bench-client -- mkdir -p "/results/bench/${label}"
 
 for c in $CONCURRENCIES; do
   n=$((c * 10))
   [ "$n" -lt 50 ] && n=50
-  echo "==> ${label}：并发 ${c}，共 ${n} 个请求"
+  echo "==> ${label}：并发 ${c}，共 ${n} 个请求，seed $((SEED + c))"
   kubectl -n infer exec deploy/bench-client -- vllm bench serve \
     --backend openai --base-url "$base_url" --model "$model" --tokenizer "$TOKENIZER" \
     --dataset-name random --random-input-len 1024 --random-output-len 256 --ignore-eos \
-    --num-prompts "$n" --max-concurrency "$c" \
+    --num-prompts "$n" --max-concurrency "$c" --seed "$((SEED + c))" \
     --percentile-metrics ttft,tpot,itl,e2el --metric-percentiles 50,95 \
     --save-result --result-dir "/results/bench/${label}" --result-filename "c${c}.json" \
     "$@"

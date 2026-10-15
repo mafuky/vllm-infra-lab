@@ -26,7 +26,7 @@ class BenchRow:
 def load_rows(bench_dir: Path) -> list[BenchRow]:
     """读取 bench_dir 下所有 <label>/c<N>.json，按 label、并发排序。"""
     rows = []
-    for path in Path(bench_dir).glob("*/*.json"):
+    for path in Path(bench_dir).glob("*/c*.json"):
         d = json.loads(path.read_text(encoding="utf-8"))
         rows.append(BenchRow(
             label=path.parent.name,
