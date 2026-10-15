@@ -40,6 +40,8 @@ class ProbeResult:
     status: int
     backend: Optional[str]
     latency_s: float
+    # 请求发出时的 Unix 时间。第 8 课用它按「新副本就绪」的时间点把请求分成前后两半
+    started_at: float = 0.0
 
 
 def backend_from_headers(headers: Mapping[str, str]) -> Optional[str]:
@@ -75,6 +77,12 @@ def summarize(results: list[ProbeResult]) -> dict[str, int]:
     return dict(counts)
 
 
+def split_at(results: list[ProbeResult], t: float) -> tuple[dict[str, int], dict[str, int]]:
+    """按发出时间切成 t 之前、之后两组，各自汇总。"""
+    return (summarize([r for r in results if r.started_at < t]),
+            summarize([r for r in results if r.started_at >= t]))
+
+
 async def probe(base_url: str, api_key: str, model: str, total: int, concurrency: int,
                 prompt_tokens: int = 1000, max_tokens: int = 256) -> list[ProbeResult]:
     import httpx
@@ -87,12 +95,12 @@ async def probe(base_url: str, api_key: str, model: str, total: int, concurrency
         async def one() -> ProbeResult:
             payload = build_payload(model, prompt_tokens, max_tokens, nonce=uuid.uuid4().hex)
             async with sem:
-                start = time.perf_counter()
+                sent, start = time.time(), time.perf_counter()
                 try:
                     resp = await client.post("/v1/chat/completions", json=payload)
-                    return ProbeResult(resp.status_code, backend_from_headers(resp.headers), time.perf_counter() - start)
+                    return ProbeResult(resp.status_code, backend_from_headers(resp.headers), time.perf_counter() - start, sent)
                 except httpx.HTTPError:
-                    return ProbeResult(0, None, time.perf_counter() - start)
+                    return ProbeResult(0, None, time.perf_counter() - start, sent)
 
         return await asyncio.gather(*(one() for _ in range(total)))
 

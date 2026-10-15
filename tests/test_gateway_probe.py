@@ -35,3 +35,16 @@ def test_client_limits_follow_concurrency():
     from scripts.gateway_probe import client_limits
 
     assert client_limits(200).max_connections == 200
+
+
+def test_split_at_ready_time():
+    from scripts.gateway_probe import ProbeResult, split_at
+    rs = [ProbeResult(200, "bailian", 12.0, started_at=100.0), ProbeResult(200, "self-hosted", 3.0, started_at=101.0),
+          ProbeResult(200, "self-hosted", 3.0, started_at=250.0)]
+    before, after = split_at(rs, 200.0)
+    assert before == {"bailian": 1, "self-hosted": 1} and after == {"self-hosted": 1}
+
+
+def test_started_at_defaults_for_old_callers():
+    from scripts.gateway_probe import ProbeResult
+    assert ProbeResult(200, "bailian", 1.0).started_at == 0.0
