@@ -26,6 +26,7 @@ spec:
       labels:
         app: bench-client
     spec:
+      enableServiceLinks: false
       containers:
         - name: bench
           image: vllm/vllm-openai:v0.30.0

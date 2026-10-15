@@ -533,10 +533,10 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 
 ### Task 9: 第 3 天——第 2 课
 
-- [ ] **Step 1:** `download-model.sh Qwen/Qwen3-8B Qwen/Qwen3-8B-AWQ`。
-- [ ] **Step 2:** apply `vllm-qwen3-8b.yaml`。Expected: Pod Ready；启动日志中有 KV Cache 容量（token 数），抄进 `results/02-vllm/kv-capacity.txt`，与讲解中的估算对比。
-- [ ] **Step 3:** 在 bench-client 或节点上 `curl http://vllm.infer:8000/v1/chat/completions`，带 `"chat_template_kwargs": {"enable_thinking": false}`。Expected: 返回中文回答。
-- [ ] **Step 4:** `curl -s http://vllm.infer:8000/metrics > results/02-vllm/metrics.txt`，然后 `python3 scripts/check_metrics.py results/02-vllm/metrics.txt lessons/03-monitoring/expected-metrics.txt`（DCGM 指标此时还没有，只看 vLLM 部分）。Expected: vLLM 指标无缺失。有缺失时，用 metrics.txt 里的实际名字更新 `expected-metrics.txt`、告警规则和看板，在 Mac 上跑 `make check` 直到通过再提交。
+- [x] **Step 1（2026-10-14 第 2 天已下载）:** `download-model.sh Qwen/Qwen3-8B Qwen/Qwen3-8B-AWQ`。
+- [x] **Step 2（2026-10-15 已完成：KV Cache 30,352 token，可用 4.17 GiB；首次部署因 Service 注入的 VLLM_PORT 与 vLLM 环境变量撞名而启动失败，已加 enableServiceLinks: false）:** apply `vllm-qwen3-8b.yaml`。Expected: Pod Ready；启动日志中有 KV Cache 容量（token 数），抄进 `results/02-vllm/kv-capacity.txt`，与讲解中的估算对比。
+- [x] **Step 3（2026-10-15 已完成，results/02-vllm/chat.json）:** 在 bench-client 或节点上 `curl http://vllm.infer:8000/v1/chat/completions`，带 `"chat_template_kwargs": {"enable_thinking": false}`。Expected: 返回中文回答。
+- [x] **Step 4（2026-10-15 已完成：vLLM 指标无缺失，只缺第 4 天才部署的 DCGM）:** `curl -s http://vllm.infer:8000/metrics > results/02-vllm/metrics.txt`，然后 `python3 scripts/check_metrics.py results/02-vllm/metrics.txt lessons/03-monitoring/expected-metrics.txt`（DCGM 指标此时还没有，只看 vLLM 部分）。Expected: vLLM 指标无缺失。有缺失时，用 metrics.txt 里的实际名字更新 `expected-metrics.txt`、告警规则和看板，在 Mac 上跑 `make check` 直到通过再提交。
 
 ### Task 10: 第 4 天——第 3 课
 

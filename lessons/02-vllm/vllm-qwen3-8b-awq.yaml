@@ -36,6 +36,7 @@ spec:
         prometheus.io/port: "8000"
         prometheus.io/path: /metrics
     spec:
+      enableServiceLinks: false
       runtimeClassName: nvidia
       containers:
         - name: vllm

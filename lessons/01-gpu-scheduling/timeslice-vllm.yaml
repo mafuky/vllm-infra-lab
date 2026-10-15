@@ -72,6 +72,7 @@ spec:
       labels:
         app: vllm-small-a
     spec:
+      enableServiceLinks: false
       runtimeClassName: nvidia
       containers:
         - name: vllm
@@ -139,6 +140,7 @@ spec:
       labels:
         app: vllm-small-b
     spec:
+      enableServiceLinks: false
       runtimeClassName: nvidia
       containers:
         - name: vllm
