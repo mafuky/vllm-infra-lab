@@ -19,7 +19,7 @@ def referenced(texts):
 
 def test_dashboard_identity():
     assert dash["uid"] == "vllm-overview"
-    assert len(panels) == 8
+    assert len(panels) == 9
     assert all(p["datasource"]["uid"] == "prometheus" for p in panels)
 
 
@@ -42,3 +42,8 @@ def test_ratio_panels_pin_axis_to_unit_range():
         fd = p.get("fieldConfig", {}).get("defaults", {})
         if fd.get("unit") == "percentunit":
             assert (fd.get("min"), fd.get("max")) == (0, 1), p["title"]
+
+
+def test_replica_count_panel():
+    # 本项目没有 kube-state-metrics：每个被采集的 vLLM Pod 贡献一条 vllm:num_requests_running 序列
+    assert "count(vllm:num_requests_running)" in exprs

@@ -6,7 +6,7 @@ YAMLS := $(shell find lessons -name '*.yaml')
 check:
 	$(PY) -m pytest -q
 	$(PY) scripts/check_pins.py $(YAMLS)
-	kubeconform -strict -summary -kubernetes-version 1.35.0 -ignore-filename-pattern 'rules|dashboards|registries|patch' lessons
+	kubeconform -strict -summary -kubernetes-version 1.35.0 -skip ScaledObject -ignore-filename-pattern 'rules|dashboards|registries|patch|keda-2' lessons
 	shellcheck scripts/*.sh
 	promtool check rules lessons/03-monitoring/rules/vllm-alerts.yaml
 	promtool test rules lessons/03-monitoring/rules/vllm-alerts.test.yaml

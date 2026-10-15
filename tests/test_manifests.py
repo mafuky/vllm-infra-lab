@@ -37,3 +37,11 @@ def test_sglang_matches_vllm_serving_contract():
     for needle in ["--served-model-name", "qwen3-8b", "--context-length", "8192", "--enable-metrics",
                    "--mem-fraction-static", "type: Recreate", "nvidia.com/gpu: 1", "prometheus.io/scrape"]:
         assert needle in doc, needle
+
+
+def test_scaledobject_follows_spec():
+    text = (LESSONS / "08-autoscaling" / "scaledobject.yaml").read_text(encoding="utf-8")
+    for needle in ["minReplicaCount: 1", "maxReplicaCount: 2", "avg_over_time(sum(vllm:num_requests_waiting)[1m:])",
+                   'threshold: "5"', "stabilizationWindowSeconds: 300", "serverAddress: http://prometheus.monitoring:9090",
+                   "name: vllm"]:
+        assert needle in text, needle
