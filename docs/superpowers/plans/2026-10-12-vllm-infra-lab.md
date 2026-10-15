@@ -540,10 +540,10 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 
 ### Task 10: 第 4 天——第 3 课
 
-- [ ] **Step 1:** `scripts/create-secrets.sh`；apply `prometheus.yaml`、`dcgm-exporter.yaml`、`grafana.yaml`，并按讲解从源文件生成 `prometheus-rules`、`grafana-dashboards`。
-- [ ] **Step 2:** Prometheus 的 Targets 页面中 vLLM 和 DCGM 都是 UP；Rules 页面三条告警都已加载。截图。
-- [ ] **Step 3:** 用 `check_metrics.py` 核对 DCGM 指标（`curl` DCGM 的 9400 端口）。Expected: 无缺失。
-- [ ] **Step 4:** Mac 上通过 SSH 端口转发打开 Grafana 的 `vllm-overview` 看板，面板①到⑦都有数据（⑧等第 6 天）。截图。
+- [x] **Step 1（2026-10-15 已完成）:** `scripts/create-secrets.sh`；apply `prometheus.yaml`、`dcgm-exporter.yaml`、`grafana.yaml`，并按讲解从源文件生成 `prometheus-rules`、`grafana-dashboards`。
+- [x] **Step 2（2026-10-15 已用 API 核对，results/03-monitoring/targets.txt、rules.txt；截图待作者补）:** Prometheus 的 Targets 页面中 vLLM 和 DCGM 都是 UP；Rules 页面三条告警都已加载。截图。
+- [x] **Step 3（2026-10-15 已完成：13 个指标全部存在）:** 用 `check_metrics.py` 核对 DCGM 指标（`curl` DCGM 的 9400 端口）。Expected: 无缺失。
+- [x] **Step 4（2026-10-15 已在并发 16 下逐个查询面板 PromQL，①到⑦都有数据，results/03-monitoring/panels-under-load.txt；截图待作者补）:** Mac 上通过 SSH 端口转发打开 Grafana 的 `vllm-overview` 看板，面板①到⑦都有数据（⑧等第 6 天）。截图。
 
 ### Task 11: 第 5 天——第 4 课
 
