@@ -1,6 +1,6 @@
 # 第 6 天 · 网关降级实测（2026-10-15）
 
-LiteLLM v1.102.1；自建组 `qwen3-8b`（vLLM，显存 0.45）超时 11 秒（拐点并发 16 的 E2E P95 7,133ms × 1.5），超时后转给 `bailian-flash`（百炼 qwen3.8-flash）。
+LiteLLM v1.102.1；自建组 `qwen3-8b`（vLLM，显存 0.45）超时 11 秒（拐点并发 16 的 E2E P95 7,122ms × 1.5），超时后转给 `bailian-flash`（百炼 qwen3.8-flash）。
 探测请求与压测同形状：约 1000 token 输入、256 token 输出，非流式。后端由响应头 `x-litellm-model-id` 判断。
 
 | 场景 | 请求数 / 并发 | 自建 | 百炼 | 错误 | 延迟 | 原始数据 |
