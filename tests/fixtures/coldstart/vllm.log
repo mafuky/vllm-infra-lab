@@ -1,0 +1,5 @@
+2026-10-15T07:54:02.100000000Z (APIServer pid=1) INFO 10-15 07:54:02 [api_server.py:1200] vLLM API server version 0.30.0
+2026-10-15T07:54:10.500000000Z (EngineCore pid=135) INFO 10-15 07:54:10 [model_runner.py:428] Model loading took 15.27 GiB memory and 7.213097 seconds
+2026-10-15T07:54:53.000000000Z (EngineCore pid=135) INFO 10-15 07:54:53 [gpu_worker.py:640] Available KV cache memory: 4.17 GiB
+2026-10-15T07:55:05.250000000Z (EngineCore pid=135) INFO 10-15 07:55:05 [core.py:372] init engine (profile, create kv cache, warmup model) took 55.41 s (compilation: 35.13 s)
+2026-10-15T07:55:08.000000000Z (APIServer pid=1) INFO:     Application startup complete.

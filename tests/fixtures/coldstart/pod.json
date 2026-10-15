@@ -1,0 +1,14 @@
+{
+  "metadata": {"name": "vllm-7c9d8b6f5-abcde", "creationTimestamp": "2026-10-15T07:53:58Z"},
+  "status": {
+    "conditions": [
+      {"type": "PodScheduled", "status": "True", "lastTransitionTime": "2026-10-15T07:53:58Z"},
+      {"type": "Initialized", "status": "True", "lastTransitionTime": "2026-10-15T07:53:58Z"},
+      {"type": "ContainersReady", "status": "True", "lastTransitionTime": "2026-10-15T07:55:12Z"},
+      {"type": "Ready", "status": "True", "lastTransitionTime": "2026-10-15T07:55:12Z"}
+    ],
+    "containerStatuses": [
+      {"name": "vllm", "ready": true, "restartCount": 0, "state": {"running": {"startedAt": "2026-10-15T07:54:00Z"}}}
+    ]
+  }
+}
