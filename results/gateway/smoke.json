@@ -1,0 +1,116 @@
+{
+  "summary": {
+    "self-hosted": 20
+  },
+  "args": {
+    "base_url": "http://litellm.gateway:4000",
+    "model": "qwen3-8b",
+    "total": 20,
+    "concurrency": 8,
+    "prompt_tokens": 1000,
+    "max_tokens": 256,
+    "out": "/results/gateway/smoke.json"
+  },
+  "results": [
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.831463785001688
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.883916520000639
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.732693107998784
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.881774166999094
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.994445911001094
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.7487891870005114
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.770584108999174
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.992473341997538
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.701368445999833
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.70301719499912
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.70035355499931
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.814800376003404
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.817058906002785
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.703447101001075
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.705983848998585
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.815430570997705
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.16447369999878
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.163451037002233
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.1637631349985895
+    },
+    {
+      "status": 200,
+      "backend": "self-hosted",
+      "latency_s": 5.065070361000835
+    }
+  ]
+}

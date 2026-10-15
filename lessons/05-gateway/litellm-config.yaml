@@ -76,6 +76,9 @@ data:
     litellm_settings:
       # 暴露 /metrics，第 3 课看板的「各后端承接的请求数」面板读它
       callbacks: ["prometheus"]
+      # v1.102.1 默认 /metrics 也要 master key，Prometheus 采集拿到 401。
+      # master key 是管理员密钥，不交给 Prometheus；指标只在集群内可达，对它单独关掉鉴权
+      require_auth_for_metrics_endpoint: false
 
     general_settings:
       master_key: os.environ/LITELLM_MASTER_KEY
