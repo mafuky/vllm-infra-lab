@@ -33,6 +33,17 @@
   compile-cache.patch.json      把编译缓存挂到宿主机：第二次起「其中编译」应明显变短
   enforce-eager.patch.json      跳过编译和 CUDA Graph：启动更快，但推理变慢，要用压测量出 ITL 的代价
 
+  kubectl -n infer patch deploy vllm --type=json --patch-file lessons/07-coldstart/compile-cache.patch.json
+  python3 scripts/coldstart.py --label compile-cache-first --runs 1 --clear-compile-cache --out ...
+  python3 scripts/coldstart.py --label compile-cache-warm --runs 3 --out ...
+
+打补丁本身会触发一次重建，那个 Pod 会先把编译缓存写满；所以「缓存为空」的那次要加 --clear-compile-cache，
+在旧 Pod 退出后、新 Pod 启动前清空 /data/cache/vllm。
+
+恢复基线必须用 kubectl replace -f lessons/02-vllm/vllm-qwen3-8b.yaml，不能用 apply：
+kubectl patch 不会更新 apply 记录的 last-applied 注解，apply 只会还原它管过的字段，
+补丁加的环境变量、卷和挂载会一直留着，后面的实验就都在热缓存上跑了（args 是整体替换的，--enforce-eager 能被 apply 还原）。
+
 ── 应该看到什么 ──────────────────────────────────────────────
 
 输出 JSON 里 runs 是每次的 6 段和总计，median 是中位数。第一周的参考值：加载权重约 7 秒，引擎初始化约 55 秒，
@@ -53,11 +64,13 @@ from typing import Optional
 
 NS = "infer"
 SELECTOR = "app=vllm"
+COMPILE_CACHE_DIR = "/data/cache/vllm"
 PARTS = ["调度", "容器启动", "进程初始化", "加载权重", "引擎初始化", "API 就绪"]
 
 _TS = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$")
 _LOAD = re.compile(r"Model loading took .* and ([\d.]+) seconds")
-_INIT = re.compile(r"init engine .* took ([\d.]+) s \(compilation: ([\d.]+) s\)")
+# --enforce-eager 时可能不打印括号里的 compilation，所以那一组可选
+_INIT = re.compile(r"init engine .* took ([\d.]+) s(?: \(compilation: ([\d.]+) s\))?")
 
 
 def parse_ts(s: str) -> datetime:
@@ -95,7 +108,8 @@ def log_marks(log_text: str) -> dict:
         if m := _LOAD.search(rest):
             marks["load_done"], marks["load_seconds"] = parse_ts(ts), float(m.group(1))
         elif m := _INIT.search(rest):
-            marks["engine_ready"], marks["compile_seconds"] = parse_ts(ts), float(m.group(2))
+            marks["engine_ready"] = parse_ts(ts)
+            marks["compile_seconds"] = float(m.group(2)) if m.group(2) else None
     return marks
 
 
@@ -143,9 +157,12 @@ def _wait_no_pods(timeout: int = 300) -> None:
     raise TimeoutError("旧的 vllm Pod 5 分钟内没有退出")
 
 
-def one_run(drop_caches: bool) -> dict:
+def one_run(drop_caches: bool, clear_compile_cache: bool = False) -> dict:
     _kubectl("scale", "deploy/vllm", "--replicas=0")
     _wait_no_pods()
+    if clear_compile_cache:
+        # 必须在旧 Pod 退出之后清：打补丁触发的那次重建已经把缓存写满了
+        subprocess.run(["sudo", "sh", "-c", f"rm -rf {COMPILE_CACHE_DIR}/*"], check=True)
     if drop_caches:
         subprocess.run(["sudo", "sh", "-c", "sync; echo 3 > /proc/sys/vm/drop_caches"], check=True)
     _kubectl("scale", "deploy/vllm", "--replicas=1")
@@ -164,14 +181,15 @@ def main() -> None:
     ap.add_argument("--label", required=True)
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--drop-caches", action="store_true", help="每次启动前清页缓存（需要 sudo）")
+    ap.add_argument("--clear-compile-cache", action="store_true", help=f"每次启动前清空 {COMPILE_CACHE_DIR}（需要 sudo）")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
     runs = []
     for i in range(args.runs):
-        r = one_run(args.drop_caches)
+        r = one_run(args.drop_caches, args.clear_compile_cache)
         runs.append(r)
         print(f"第 {i + 1} 次：" + "，".join(f"{k} {v:.1f}s" if v is not None else f"{k} -" for k, v in r["phases"].items()))
-    out = {"label": args.label, "drop_caches": args.drop_caches, "runs": runs,
+    out = {"label": args.label, "drop_caches": args.drop_caches, "clear_compile_cache": args.clear_compile_cache, "runs": runs,
            "median": median_phases([r["phases"] for r in runs])}
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")

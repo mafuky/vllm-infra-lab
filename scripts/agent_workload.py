@@ -207,11 +207,15 @@ async def _one_turn(client: httpx.AsyncClient, model: str, session_idx: int, tur
                 if data == "[DONE]":
                     break
                 chunk = json.loads(data)
+                if "error" in chunk:  # 引擎在流里报错（例如上下文超长）时，HTTP 状态仍是 200
+                    return failed
                 if ttft is None and is_content_chunk(chunk):
                     ttft = (time.perf_counter() - start) * 1000
                 if chunk.get("usage"):
                     usage = chunk["usage"]
     except (httpx.HTTPError, json.JSONDecodeError):
+        return failed
+    if ttft is None:  # 一个字都没生成，也算失败：否则它会悄悄从分位数里消失，冒烟检查的「失败数 0」也就不可信了
         return failed
     return TurnRecord(session_idx, turn, True, ttft, (time.perf_counter() - start) * 1000,
                       usage.get("prompt_tokens"), usage.get("completion_tokens"))

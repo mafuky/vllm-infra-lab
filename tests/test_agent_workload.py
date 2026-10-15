@@ -143,3 +143,17 @@ def test_text_exact_count_when_decode_merges_tokens():
     tok = MergingTokenizer()
     text = make_text(tok, 30, random.Random(1))
     assert len(tok.encode(text)) == 30
+
+
+def test_stream_without_content_or_with_error_is_failure():
+    sessions = build_sessions(TOK, 2, shared=True, seed=5, turns=1, **SMALL)
+    first_user = sessions[0].users[0]
+
+    def handler(request):
+        body = json.loads(request.content)
+        if body["messages"][-1]["content"] == first_user:
+            return httpx.Response(200, text=_sse({"error": {"message": "context too long"}}))
+        return httpx.Response(200, text=_sse({"choices": [{"delta": {"role": "assistant"}}]}))
+
+    recs = asyncio.run(run_sessions("http://x", "qwen3-8b", sessions, concurrency=2, transport=httpx.MockTransport(handler)))
+    assert [r.ok for r in sorted(recs, key=lambda r: r.session)] == [False, False]

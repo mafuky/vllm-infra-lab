@@ -359,10 +359,10 @@ git add -A && git commit -m "feat: 网关探测记录发出时间，可按时间
 
 - [ ] **Step 1:** 基准：`python3 scripts/coldstart.py --label baseline --runs 3 --out /data/results/coldstart/baseline.json`。Expected: 中位数各段齐全；「加载权重」接近第一周的 7 秒、「其中编译」接近 35 秒。
 - [ ] **Step 2:** 冷盘：同上加 `--drop-caches`，label `drop-caches`。
-- [ ] **Step 3:** 编译缓存：打 `compile-cache.patch.json`；先跑 1 次 label `compile-cache-first`（缓存为空），再跑 3 次 label `compile-cache-warm`。Expected: warm 的「其中编译」明显低于 baseline；写下 `/data/cache/vllm` 的大小。
-- [ ] **Step 4（可砍）:** 去掉编译缓存补丁，打 `enforce-eager.patch.json`，跑 3 次 label `enforce-eager`；再 `CONCURRENCIES=16 scripts/bench.sh eager http://vllm.infer:8000 qwen3-8b`，与 `baseline` 并发 16 的 ITL P95 对比。
+- [ ] **Step 3:** 编译缓存：打 `compile-cache.patch.json`；先跑 1 次 label `compile-cache-first`，加 `--clear-compile-cache`（打补丁触发的重建已经把缓存写满，必须在旧 Pod 退出后清空），再跑 3 次 label `compile-cache-warm`。Expected: warm 的「其中编译」明显低于 baseline；写下 `/data/cache/vllm` 的大小。
+- [ ] **Step 4（可砍）:** 用 `kubectl replace -f lessons/02-vllm/vllm-qwen3-8b.yaml` 去掉编译缓存补丁（`apply` 删不掉补丁加的字段），打 `enforce-eager.patch.json`，跑 3 次 label `enforce-eager`；再 `CONCURRENCIES=16 scripts/bench.sh eager http://vllm.infer:8000 qwen3-8b`，与 `baseline` 并发 16 的 ITL P95 对比。
 - [ ] **Step 5:** 交叉核对：`kubectl -n infer exec deploy/bench-client -- vllm bench startup --help` 查看用法，按用法对 `/models/Qwen3-8B` 跑一次冷启动和热启动，结果存 `results/coldstart/bench-startup.txt`，与 `coldstart.py` 的「加载权重」「引擎初始化」对比。
-- [ ] **Step 6:** `kubectl apply -f lessons/02-vllm/vllm-qwen3-8b.yaml` 恢复基线配置。Mac 上 rsync，写 `results/coldstart/summary.md`：各条件六段中位数对比表、每项优化省了哪一段多少秒、`--enforce-eager` 的启动收益与 ITL 代价。提交。
+- [ ] **Step 6:** `kubectl replace -f lessons/02-vllm/vllm-qwen3-8b.yaml` 恢复基线配置（不能用 `apply`，理由见 `coldstart.py` 头部）。Mac 上 rsync，写 `results/coldstart/summary.md`：各条件六段中位数对比表、每项优化省了哪一段多少秒、`--enforce-eager` 的启动收益与 ITL 代价。提交。
 - [ ] **Step 7（可砍，投机解码）:** 给 vllm 的 args 追加 `--speculative-config '{"method":"ngram","num_speculative_tokens":4,"prompt_lookup_max":4}'`；`vllm bench serve --help=dataset-name` 确认可用的数据集类型，分别用 random 和一组「请原样复述下面这段文字」的提示词各跑并发 1、16，对比 ITL。结果存 `results/specdec/`，恢复基线后提交。
 
 ## Task 9: 第 12 天——单卡上的 KEDA 扩缩容与网关联动
@@ -370,7 +370,7 @@ git add -A && git commit -m "feat: 网关探测记录发出时间，可按时间
 - [ ] **Step 1:** 设备插件切 time-slicing（第一周的 `device-plugin-config-timeslice.yaml`，`rollout restart ds/nvidia-device-plugin`），确认 allocatable 为 2。`kubectl apply --server-side -f lessons/08-autoscaling/keda-2.21.0.yaml`，等 `keda` 命名空间的 3 个 Pod Ready。
 - [ ] **Step 2:** 先手动把 vllm 扩到 2，确认第二个副本启动日志里的 KV 容量与 30,352 token 偏差不超过 10%（不够就按规格书风险表把两个副本都降到 0.42，结果中注明），然后缩回 1。
 - [ ] **Step 3:** 更新看板 ConfigMap（含副本数面板），`kubectl apply -f lessons/08-autoscaling/scaledobject.yaml`，确认 `kubectl -n infer get hpa` 出现 KEDA 创建的 HPA 且目标指标有值。
-- [ ] **Step 4:** 实验：后台启动 `autoscale_timeline.py record --duration 1800`；稳态并发 8 跑 3 分钟（`vllm bench serve` 直连 vllm，`--max-concurrency 8`，请求数按 3 分钟估算）；阶跃并发 48 持续约 10 分钟（约 1,700 个请求）；同时经网关以并发 4 发 `gateway_probe.py --total 200 --out /results/autoscaling/gateway.json`；阶跃结束后回到并发 8，等到缩回 1 个副本。期间在 Grafana 截图：排队数上升、副本数从 1 到 2、排队数回落。
+- [ ] **Step 4:** 实验：先确认 vllm 是 1 个副本、时间线文件是新文件名（已存在会拒绝运行）；后台启动 `autoscale_timeline.py record --duration 1800`；稳态并发 8 跑 3 分钟（`vllm bench serve` 直连 vllm，`--max-concurrency 8`，请求数按 3 分钟估算）；阶跃并发 48 持续约 10 分钟（约 1,700 个请求）；同时经网关以并发 4 发 `gateway_probe.py --total 200 --out /results/autoscaling/gateway.json`；阶跃结束后回到并发 8，等到缩回 1 个副本。期间在 Grafana 截图：排队数上升、副本数从 1 到 2、排队数回落。
 - [ ] **Step 5:** `autoscale_timeline.py summarize`，并用 `split_at(..., t_ready)` 统计新副本就绪前后转到百炼的请求数。写 `results/autoscaling/summary.md`：越过阈值 → KEDA 改副本数 → 新副本就绪的各段耗时、阶跃期间 TTFT P95、就绪前后的转出统计、单卡扩容的收益和代价。
 - [ ] **Step 6:** 收尾：删除 ScaledObject，vllm 回到 1 个副本，设备插件切回 exclusive。提交。
 
