@@ -19,6 +19,7 @@
 #   设太小：自建明明还扛得住，请求就被转走了，钱白花；
 #   设太大：用户已经等了很久才切走，体验差。
 # 第 4 课测出拐点后，把 timeout 设成拐点并发下 E2E P95 的 1.5 倍（向上取整到秒）。
+# 2026-10-15 实测：拐点并发 16，E2E P95 7,133ms（results/bench/knee.md），× 1.5 ≈ 10.7，取 11 秒。
 #
 # num_retries: 0：失败后不在 vLLM 上重试，直接切。在过载的 vLLM 上重试只会让它更堵。
 #
@@ -50,7 +51,7 @@ data:
         litellm_params:
           model: hosted_vllm/qwen3-8b
           api_base: http://vllm.infer:8000/v1
-          timeout: 30
+          timeout: 11
           extra_body:
             chat_template_kwargs:
               enable_thinking: false
