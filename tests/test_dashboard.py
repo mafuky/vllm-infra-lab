@@ -34,3 +34,11 @@ def test_dashboard_covers_key_metrics():
 def test_only_expected_metrics_are_referenced():
     rules = (MON / "rules/vllm-alerts.yaml").read_text(encoding="utf-8")
     assert referenced(exprs + [rules]) <= expected
+
+
+def test_ratio_panels_pin_axis_to_unit_range():
+    # percentunit 表示 0 到 1 的比例。不固定上下限时，数据全为 0 的面板会被自动撑到 0~100，显示成 0~10000%
+    for p in panels:
+        fd = p.get("fieldConfig", {}).get("defaults", {})
+        if fd.get("unit") == "percentunit":
+            assert (fd.get("min"), fd.get("max")) == (0, 1), p["title"]
