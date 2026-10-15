@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - 第一周完成；第一周 GPU 费用约 80 元，超过 80 元停止可砍项；两周合计不超过 150 元。装软件、下模型、拉镜像等不需要 GPU 的活放在无卡模式（0.15 元/小时）下做。
-- 硬件：优云智算上海 RTX 4090 48G 单卡（14 核、96GB 内存，Ubuntu-nvidia 22.04 虚机，按量 3.17 元/小时，出厂驱动 570.153.02，系统盘可用 83GB）；开发机 Mac 只写配置、脚本、画图。
+- 硬件：优云智算华北二A RTX 4090 48G 单卡（14 核、96GB 内存，Ubuntu-nvidia 22.04 虚机，按量 3.17 元/小时，出厂驱动 570.153.02，系统盘可用 83GB）；开发机 Mac 只写配置、脚本、画图。
 - 命名空间固定为 `gpu`、`infer`、`gateway`、`monitoring`；模型目录固定为宿主机 `/data/models`，从 ModelScope 下载。
 - 主模型 `Qwen/Qwen3-8B`（BF16），对照 `Qwen/Qwen3-8B-AWQ`；time-slicing 实验用 `Qwen/Qwen3-1.7B`。
 - vLLM 基线参数：`--max-model-len 8192`、`--gpu-memory-utilization 0.45`（48G × 0.45 ≈ 21.6GB，等同 24G 卡跑 0.9）、开启前缀缓存。另做一组 0.90 的不限显存对照。
@@ -518,7 +518,7 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 ### Task 7: 第 1 天收尾——开通 GPU 实例
 
 - [x] **Step 1（2026-10-14 已完成：7 个镜像全部存在）:** Mac 上执行 `scripts/check-images.sh`。Expected: 所有镜像存在；不存在的按 Global Constraints 的规则替换，`make check` 后提交。
-- [x] **Step 2（2026-10-13 已完成：上海 RTX 4090 48G，root 可用，驱动 570.153.02，系统盘可用 83G，内存 94Gi。写 `results/00-instance.md` 时不要写密码和 IP）:** 在优云智算开一台 RTX 4090 单卡实例，计费选**按量付费**（只有按量实例能在关机时切到 0.15 元/小时的无卡模式），镜像选**系统镜像 Ubuntu 22.04**，创建页如有预装 NVIDIA 驱动的选项则选 570 或更高版本（系统镜像是虚机；CUDA、PyTorch 等基础镜像和社区镜像是容器，不能装 Docker 和 k3s，不要选）。按实例详情页「登录指令」中的主机和端口登录（华北一C 等无公网 IP 的地域是映射端口，不一定是 22），用户 `ubuntu`；先用控制台密码登录，再 `ssh-copy-id` 加公钥；在 Mac 的 `~/.ssh/config` 里配好别名并写进 `.env` 的 `GPU_HOST`。确认：`sudo -i` 能拿到 root；`nvidia-smi` 有没有输出（没有说明需要装驱动，第 2 天由 `setup-node.sh` 处理），有则记下驱动版本；`df -h` 中可用空间不少于 80GB（三个模型约 26GB，加上 vLLM 等镜像）；关机后是否计费（查文档或客服）。写入 `results/00-instance.md`。如果登录用户是 root 且端口是 23，说明开成了容器实例，删除后按上面的要求重开。
+- [x] **Step 2（2026-10-13 已完成：华北二A RTX 4090 48G，root 可用，驱动 570.153.02，系统盘可用 83G，内存 94Gi。写 `results/00-instance.md` 时不要写密码和 IP）:** 在优云智算开一台 RTX 4090 单卡实例，计费选**按量付费**（只有按量实例能在关机时切到 0.15 元/小时的无卡模式），镜像选**系统镜像 Ubuntu 22.04**，创建页如有预装 NVIDIA 驱动的选项则选 570 或更高版本（系统镜像是虚机；CUDA、PyTorch 等基础镜像和社区镜像是容器，不能装 Docker 和 k3s，不要选）。按实例详情页「登录指令」中的主机和端口登录（华北一C 等无公网 IP 的地域是映射端口，不一定是 22），用户 `ubuntu`；先用控制台密码登录，再 `ssh-copy-id` 加公钥；在 Mac 的 `~/.ssh/config` 里配好别名并写进 `.env` 的 `GPU_HOST`。确认：`sudo -i` 能拿到 root；`nvidia-smi` 有没有输出（没有说明需要装驱动，第 2 天由 `setup-node.sh` 处理），有则记下驱动版本；`df -h` 中可用空间不少于 80GB（三个模型约 26GB，加上 vLLM 等镜像）；关机后是否计费（查文档或客服）。写入 `results/00-instance.md`。如果登录用户是 root 且端口是 23，说明开成了容器实例，删除后按上面的要求重开。
 - [x] **Step 3（2026-10-13 已完成：百炼已不提供 qwen3-8b，降级目标改为 qwen3.8-flash，北京地域输入 0.8 元、输出 2.7 元 / 百万 token，价格页 https://help.aliyun.com/zh/model-studio/model-pricing）:** 查百炼是否提供 `qwen3-8b` 及其输入、输出单价，连同查询日期和价格页链接写入 `results/00-instance.md`。
 - [x] **Step 4（2026-10-14 已完成，别名 gpu4090）:** `ssh $GPU_HOST 'sudo mkdir -p /data/lab && sudo chown ubuntu:ubuntu /data/lab'`，然后 `rsync -av --exclude .venv --exclude .env ./ $GPU_HOST:/data/lab/`，并在服务器上手动建 `/data/lab/.env`。
 
