@@ -25,3 +25,15 @@ def test_litellm_metrics_scrapable_without_master_key():
     # 不把 master key 交给 Prometheus（那是管理员密钥），而是只对集群内的指标端点关掉鉴权
     text = (LESSONS / "05-gateway" / "litellm-config.yaml").read_text(encoding="utf-8")
     assert "require_auth_for_metrics_endpoint: false" in text
+
+
+def _sglang_doc():
+    text = (LESSONS / "06-sglang" / "sglang.yaml").read_text(encoding="utf-8")
+    return next(d for d in text.split("\n---") if "kind: Deployment" in d)
+
+
+def test_sglang_matches_vllm_serving_contract():
+    doc = _sglang_doc()
+    for needle in ["--served-model-name", "qwen3-8b", "--context-length", "8192", "--enable-metrics",
+                   "--mem-fraction-static", "type: Recreate", "nvidia.com/gpu: 1", "prometheus.io/scrape"]:
+        assert needle in doc, needle

@@ -1,0 +1,110 @@
+# 第 6 课 · 同一张卡、同一个模型，换 SGLang 跑一遍
+#
+# 半天（部署和对齐 KV 容量约 1 小时，标准压测约 15 分钟，其余是 Agent 负载，见 scripts/agent_workload.py）。
+#
+# ── 你在做什么 ────────────────────────────────────────────────
+#
+# 面试官问「推理引擎为什么选 vLLM」，答「大家都用」是不够的。这一课把 SGLang 放到和 vLLM 完全相同的条件下：
+# 同一张卡、同一个 Qwen3-8B、同样的服务名 qwen3-8b 和 8192 上下文、同一个压测客户端（bench.sh），
+# 用数据回答两个引擎各自强在哪里。
+#
+# ── 为什么不能直接照抄显存参数 ────────────────────────────────
+#
+# 两个引擎的显存参数语义不同：
+#   vLLM   --gpu-memory-utilization 0.45   = 整张卡显存的 45%（权重 + KV Cache + 激活 + CUDA Graph）
+#   SGLang --mem-fraction-static    0.42   = 权重 + KV 池占整张卡的比例，激活等另算
+# 填同一个数，两边的 KV Cache 大小会差很多，压测比的就不是引擎而是显存。
+# 所以按「KV Cache 能装多少 token」对齐：第一周 vLLM 在 0.45 时实测 30,352 token。
+#   SGLang 需要：权重约 15.3 GiB + 30,352 token × 144KB ≈ 4.2 GiB ≈ 19.5 GiB，÷ 47.4 GiB ≈ 0.41
+# 先用 0.42 起步，看启动日志里的 max_total_num_tokens，偏差超过 10% 就按比例调整再试，记进 results/06-sglang/kv-alignment.md。
+#
+# ── 怎么执行 ──────────────────────────────────────────────────
+#
+# 单卡上两个引擎二选一：SGLang 默认 0 个副本。
+#
+#   kubectl apply -f lessons/06-sglang/sglang.yaml
+#   kubectl -n infer scale deploy/vllm --replicas=0      # 等 vllm 的 Pod 消失，GPU 才会空出来
+#   kubectl -n infer scale deploy/sglang --replicas=1
+#   kubectl -n infer logs -f deploy/sglang               # 找 max_total_num_tokens
+#   scripts/bench.sh sglang-baseline http://sglang.infer:8000 qwen3-8b
+#
+# 做完切回 vLLM：sglang 缩到 0，vllm 扩到 1。
+#
+# ── 应该看到什么 ──────────────────────────────────────────────
+#
+# 启动日志里有 max_total_num_tokens（KV 池能放多少 token），和 30,352 的偏差在 10% 以内。
+# /metrics 有 sglang: 开头的指标（核对清单 lessons/06-sglang/expected-metrics.txt）。
+# 压测 5 档全部 0 失败，和 results/bench/baseline 放在一张表里对比；KV 容量写在表头，说明对比是否公平。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sglang
+  namespace: infer
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: sglang
+  template:
+    metadata:
+      labels:
+        app: sglang
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      # 同第 2 课：不让 K8s 往容器里注入 <服务名>_PORT 这类环境变量，避免和引擎自己读的变量撞名
+      enableServiceLinks: false
+      runtimeClassName: nvidia
+      containers:
+        - name: sglang
+          image: lmsysorg/sglang:v0.5.20-cu130
+          command: ["python3", "-m", "sglang.launch_server"]
+          args: ["--model-path", "/models/Qwen3-8B", "--served-model-name", "qwen3-8b",
+                 "--host", "0.0.0.0", "--port", "8000", "--context-length", "8192",
+                 "--mem-fraction-static", "0.42", "--enable-metrics"]
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 5
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: models
+          hostPath:
+            path: /data/models
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sglang
+  namespace: infer
+spec:
+  selector:
+    app: sglang
+  ports:
+    - port: 8000
+      targetPort: 8000
