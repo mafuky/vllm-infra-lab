@@ -5,7 +5,7 @@
 # 服务器在国内，直连 docker.io、ghcr.io、nvcr.io 拉镜像经常超时，
 # Pod 会卡在 ImagePullBackOff，看起来像配置错了，其实只是网络。
 # 这里给三个仓库都配上国内公共镜像站，按顺序尝试，都失败时 containerd 会回退到原站。
-# 2026-10-14 在优云智算上海实测：DaoCloud 的 docker.io 和 ghcr.io 镜像能连上但不出数据，拉取卡死；
+# 2026-10-14 在优云智算华北二A实测：DaoCloud 的 docker.io 和 ghcr.io 镜像能连上但不出数据，拉取卡死；
 # dockerproxy.net 和南京大学的 ghcr.nju.edu.cn 可以匿名拉，放在最前面。nvcr.io 走 DaoCloud 正常。
 # 公共镜像站随时可能限流或下线，Pod 卡在 ContainerCreating 很久时，先用 sudo k3s ctr -n k8s.io content active
 # 看层的大小在不在涨，不涨就是镜像站的问题。
