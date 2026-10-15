@@ -1,10 +1,24 @@
 # vllm-infra-lab 第二周设计文档
 
 - 日期：2026-10-13
-- 状态：待评审
+- 状态：待评审（2026-10-15 按第一周实测更新，改动集中在第 0 节）
 - 前置：第一周设计文档 `2026-10-12-vllm-infra-lab-design.md` 已完成并按其计划执行。本周复用第一周的 k3s 集群、监控、压测工具和网关，不重复搭建。
 - 周期：一周（5 个工作日，源码阅读放在晚上）
-- 预算：两周合计 GPU 费用不超过 150 元，本周预计约 75 元（硬件改为 4090 48G 后重算）
+- 预算：两周合计 GPU 费用不超过 150 元。第一周实际约 37 元，本周预计约 76 元，两周约 113 元（另有系统盘扩容费用，以控制台为准）
+
+## 0. 第一周带来的调整（2026-10-15）
+
+| 事项 | 第一周的实测或发现 | 本周怎么调整 |
+| --- | --- | --- |
+| 镜像 | SGLang `v0.5.20-cu130` 和 KEDA 2.21.0 的三个镜像已在服务器上，digest 与官方一致；系统盘已扩到 200GB | 第 8 天不再拉镜像；公共镜像站不稳的风险已解除 |
+| vLLM 对照数据 | 第一周 `bench.sh` 没传 seed，随机提示词跨档命中前缀缓存；已修复，并用新 seed 重跑了 baseline | SGLang 对比直接用重跑后的 `baseline`；SGLang 一侧用同一版 `bench.sh` |
+| Service 环境变量撞名 | Service 名 `vllm` 注入的 `VLLM_PORT` 让 vLLM 启动失败 | SGLang 的 Deployment 同样关 `enableServiceLinks`（`test_manifests.py` 已覆盖 sglang 镜像） |
+| 拐点 | 显存 0.45 时 KV Cache 30,352 token，拐点并发 16 | SGLang 按 KV 容量对齐到约 3 万 token；冷启动和扩缩容沿用这个配置 |
+| 冷启动起点 | vLLM 加载权重 7 秒，引擎初始化 55 秒（其中编译 35 秒） | 作为冷启动优化前的参考值；编译是最大的一段，持久化编译缓存最值得做 |
+| 排队数摆动 | 并发 32 时排队数在 5 上下来回跳，`for: 1m` 的告警一直停在 Pending | KEDA 触发器改用 1 分钟平均排队数，避免副本数来回抖 |
+| 前缀缓存 | 512 token 共享前缀时命中率 49.8%，拐点从 16 推到 32 | Agent 负载的共享前缀组预期收益更大，作为对照参考 |
+| 源码待查问题 | `knee.md` 留了两个看不懂的现象：`--max-num-seqs` 改变可用 KV 显存；基线 ITL 尖刺 | 分别并入源码笔记 1、2，笔记要回答它们 |
+| 网关重启窗口 | LiteLLM 滚动重启时 46/150 个请求立刻失败 | 不在本周范围；扩缩容实验期间不重启网关，结果中注明 |
 
 ## 1. 目的
 
@@ -68,7 +82,7 @@ infer       ScaledObject：按 sum(vllm:num_requests_waiting) 扩缩 vllm Deploy
 
 **标准负载**
 
-复用第一周的 `bench.sh` 和 `vllm bench serve` 客户端（`--backend openai`），参数完全一致：random 数据集，输入 1024、输出 256，`--ignore-eos`，5 档并发。vLLM 一侧直接复用第一周 label 为 `baseline` 的结果，不重跑；SGLang 一侧的 label 为 `sglang-baseline`。
+复用第一周的 `bench.sh` 和 `vllm bench serve` 客户端（`--backend openai`），参数完全一致：random 数据集，输入 1024、输出 256，`--ignore-eos`，5 档并发，每档不同 seed。vLLM 一侧直接复用 2026-10-15 用新 seed 重跑的 `baseline`，不再重跑；SGLang 一侧的 label 为 `sglang-baseline`。
 
 ### 4.2 Agent 式多轮负载
 
@@ -121,7 +135,7 @@ Agent 的请求和聊天不同：系统提示词加工具定义很长且所有�
 **机制**
 
 - 安装 KEDA v2.21.0（官方 YAML 清单）。选 KEDA 而不是 HPA 的原因：HPA 用自定义指标需要额外部署 prometheus-adapter，KEDA 直接查询 Prometheus，配置更少，还支持缩容到 0。
-- ScaledObject 指向 `infer/vllm`，触发器为 Prometheus 查询 `sum(vllm:num_requests_waiting)`，阈值 5（与第一周的排队告警一致），`minReplicaCount: 1`，`maxReplicaCount: 2`，缩容冷却 300 秒。
+- ScaledObject 指向 `infer/vllm`，触发器为 Prometheus 查询 `avg_over_time(sum(vllm:num_requests_waiting)[1m:])`（第一周发现瞬时排队数在阈值附近来回跳），阈值 5（与第一周的排队告警一致），`minReplicaCount: 1`，`maxReplicaCount: 2`，缩容冷却 300 秒。
 - 单节点、双卡，两个副本各占一张卡。K8s Service 按连接随机分发，不感知前缀缓存，讲解中说明这会降低缓存命中率，以及按前缀路由的方案如何解决。
 
 **实验**
@@ -137,8 +151,8 @@ Agent 的请求和聊天不同：系统提示词加工具定义很长且所有�
 
 读第一周部署的同一版本（按镜像标签对应的 Git tag），笔记放在 `notes/vllm-source/`。每篇按「要解决的问题、关键数据结构、调用路径、对应本项目的哪个现象」四段来写：
 
-1. **调度器与 continuous batching**：一个请求从进入等待队列到被调度、每一步怎么决定 prefill 和 decode 的配比。对应现象：第一周压测中排队数和 TTFT 随并发的变化。
-2. **KV Cache 显存块管理（PagedAttention）**：显存块池怎么分配、KV 满了以后怎么抢占。对应现象：启动日志中的 KV Cache 容量，以及 KVCacheNearFull 告警触发时的行为。
+1. **调度器与 continuous batching**：一个请求从进入等待队列到被调度、每一步怎么决定 prefill 和 decode 的配比。对应现象：第一周压测中排队数和 TTFT 随并发的变化；并回答 `knee.md` 待查问题 2（基线并发 32、64 时 ITL P95 75~79ms，而 `--max-num-seqs 32/64` 只有约 24ms）。
+2. **KV Cache 显存块管理（PagedAttention）**：显存块池怎么分配、KV 满了以后怎么抢占。对应现象：启动日志中的 KV Cache 容量，以及 KVCacheNearFull 告警触发时的行为；并回答 `knee.md` 待查问题 1（`--max-num-seqs` 为什么会改变可用 KV 显存）。
 3. **前缀缓存（可砍）**：块哈希怎么算、怎么命中、怎么淘汰，并简要对比 SGLang 的基数树。对应现象：4.2 节两组负载的命中率差异。
 
 ### 4.6 投机解码（可砍）
@@ -169,7 +183,7 @@ results/
 
 | 天 | 内容 | GPU |
 | --- | --- | --- |
-| 8 | Mac 上写完本周的配置和脚本，锁定 SGLang、KEDA 版本；确认能否原地升级双卡 | 否 |
+| 8 | Mac 上写完本周的配置和脚本（镜像已就绪）；确认能否原地升级双卡 | 否 |
 | 9 | 部署 SGLang，对齐 KV Cache 容量，跑标准负载 | 单卡约 5 小时 |
 | 10 | 两个引擎各跑 Agent 式负载的两组条件 | 单卡约 5 小时 |
 | 11 | 冷启动分阶段计时和三项优化对比；有余力做投机解码 | 单卡约 4 小时 |
@@ -177,7 +191,7 @@ results/
 
 晚上：第 8 到 12 天按顺序读源码、写笔记。
 
-费用估算（4090 48G）：单卡约 14 小时 × 3.17 元 ≈ 44 元；双卡约 5 小时 × 6.35 元 ≈ 32 元；合计约 76 元。加上第一周约 80 元，两周约 155 元，略超预算；靠无卡模式做准备工作、必要时砍可砍项，压到 150 元以内，在 150 元预算内。
+费用估算（4090 48G）：单卡约 14 小时 × 3.17 元 ≈ 44 元；双卡约 5 小时 × 6.35 元 ≈ 32 元；合计约 76 元。第一周实际约 37 元，两周约 113 元，在 150 元预算内。双卡单价是按单卡两倍估的，第 8 天以控制台报价为准。
 
 **进度落后时的砍需求顺序**
 
@@ -192,7 +206,7 @@ SGLang 标准对比、Agent 式负载、冷启动前两项优化、KEDA 扩容�
 
 | 风险 | 对策 |
 | --- | --- |
-| SGLang 镜像需要的 CUDA 版本高于驱动支持 | 第 8 天按驱动版本选镜像标签；用 `check-images.sh` 确认存在 |
+| SGLang 镜像需要的 CUDA 版本高于驱动支持 | 已解除：`v0.5.20-cu130` 与驱动 580 匹配，镜像已导入服务器 |
 | SGLang 的 OpenAI 接口对 `ignore_eos` 或关闭思考模式的参数支持不同 | 第 9 天先单发请求核对；标准负载不一致时改用 SGLang 自带的 `sglang.bench_serving` 对两个引擎各跑一次，保证同一客户端 |
 | 两个引擎的 KV Cache 容量对不齐 | 以日志中的 token 容量为准反复调整，实在对不齐就在结果中注明偏差 |
 | 双卡实例缺货 | 提前一天查库存；实在租不到，扩缩容改在单卡上用 time-slicing 跑两个 1.7B 小模型副本演示机制，结果中如实说明 |
