@@ -337,6 +337,54 @@
       ]
     },
     {
+      "type": "timeseries",
+      "id": 15,
+      "title": "vLLM 副本数",
+      "description": "被 Prometheus 采集到的 vLLM Pod 个数（每个 Pod 一条 vllm:num_requests_running 序列）。第 8 课 KEDA 扩容时从 1 变 2；新 Pod 加载模型期间还没有指标，所以它比 Deployment 的副本数晚一步变化，正好反映「新副本什么时候真正能接流量」。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          },
+          "decimals": 0,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "count(vllm:num_requests_running)",
+          "legendFormat": "副本",
+          "refId": "A"
+        }
+      ]
+    },
+    {
       "type": "row",
       "id": 9,
       "title": "④ 硬件：卡本身的状态",
@@ -346,7 +394,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 33
       }
     },
     {
@@ -362,7 +410,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 34
       },
       "fieldConfig": {
         "defaults": {
@@ -431,7 +479,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 42
       }
     },
     {
@@ -447,7 +495,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 43
       },
       "fieldConfig": {
         "defaults": {
@@ -492,7 +540,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 51
       }
     },
     {
@@ -508,7 +556,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 52
       },
       "fieldConfig": {
         "defaults": {

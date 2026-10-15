@@ -1,0 +1,79 @@
+# 第 8 课 · 排队一多，自动再起一个副本
+#
+# 半天（装 KEDA 10 分钟，实验约 30 分钟，其余是准备和整理）。
+#
+# ── 你在做什么 ────────────────────────────────────────────────
+#
+# 第一周扛不住时只能把请求转给百炼。生产上完整的应对链路是两步：先降级兜底（网关超时转云端），
+# 同时自动扩一个副本；新副本能接流量后，请求回到自建。这一课用 KEDA 按排队数把 vllm 从 1 个副本扩到 2 个，
+# 量出「排队超过阈值 → KEDA 改副本数 → 新副本就绪」每一段要多久，以及这段时间里有多少请求被转去百炼。
+#
+# ── 为什么用 KEDA，不用 HPA ────────────────────────────────────
+#
+# HPA 原生只认 CPU、内存；要按 Prometheus 里的排队数扩缩，得额外部署 prometheus-adapter 并写指标映射。
+# KEDA 直接查 Prometheus，一个 ScaledObject 就够，它在背后替你创建并维护 HPA；还支持缩到 0（本项目不做，见下）。
+#
+# ── 为什么查「1 分钟平均排队数」 ──────────────────────────────
+#
+# 第一周并发 32 时排队数在 5 上下来回跳（请求一完成就释放 KV 块），排队告警的 for: 1m 一直停在 Pending。
+# 直接用瞬时值触发，副本数会跟着抖。avg_over_time(...[1m:]) 先把 1 分钟内的波动抹平再和阈值比较。
+# 阈值 5 与第一周的 RequestQueueBacklog 告警一致：告警响的时候，扩容也该开始了。
+#
+# KEDA 的 Prometheus 触发器默认按 AverageValue 计算：期望副本数 = ceil(查询值 / 5)，最多 2 个。
+#
+# ── 缩容冷却 300 秒写在哪 ────────────────────────────────────
+#
+# KEDA 的 cooldownPeriod 只管「缩到 0」，副本在 1 和 2 之间的缩容由它创建的 HPA 决定，
+# 所以 300 秒写在 advanced.horizontalPodAutoscalerConfig.behavior.scaleDown 里：排队数回落后至少稳定 5 分钟才缩回 1。
+#
+# ── 只有一张卡，第二个副本放在哪 ──────────────────────────────
+#
+# 双卡缺货（2026-10-15 控制台显示暂无资源）。这张 48G 卡上每个 vllm 副本只用 45% 显存（模拟一张 24G 卡），
+# 设备插件切到 time-slicing（replicas: 2）后，第二个副本正好放得下。
+# 收益：第一周测出并发 16 之后的瓶颈是 KV Cache 容量，不是算力；第二个副本带来另一份约 3 万 token 的 KV Cache，排队应明显减少。
+# 代价：两个副本分时共享同一份算力，每个 token 会变慢。生产上要按整卡扩容，就是因为分时共享换不来算力。
+# 第一周 time-slicing 实验里两个实例同时启动会互相干扰显存测量；扩容时第一个副本已在运行、第二个后启动，不会同时测量。
+#
+# K8s Service 把请求随机分给两个副本，不看前缀：同一个会话的后续请求可能落到另一个副本，前缀缓存命中率会下降。
+# 按前缀路由（llm-d、SGLang Router 这类）能解决，本项目只在讲解中说明。
+#
+# 缩到 0 不做：副本为 0 时 vLLM 的指标跟着消失，查询没有值，KEDA 无从判断要不要扩回 1，
+# 只能改用网关侧的请求数触发，复杂度明显上升。
+#
+# ── 怎么执行 ──────────────────────────────────────────────────
+#
+#   kubectl apply -f lessons/01-gpu-scheduling/device-plugin-config-timeslice.yaml
+#   kubectl -n gpu rollout restart ds/nvidia-device-plugin               # allocatable 变为 2
+#   kubectl apply --server-side -f lessons/08-autoscaling/keda-2.21.0.yaml  # 官方清单，CRD 太大，必须 server-side
+#   kubectl apply -f lessons/08-autoscaling/scaledobject.yaml
+#   kubectl -n infer get hpa                                             # KEDA 创建的 HPA，TARGETS 有值
+#   python3 scripts/autoscale_timeline.py record --duration 1800 --out /data/results/autoscaling/timeline.jsonl
+#
+# 压测步骤见实施计划任务 9。做完删除 ScaledObject，vllm 回到 1 个副本，设备插件切回 exclusive。
+#
+# ── 应该看到什么 ──────────────────────────────────────────────
+#
+# 阶跃到并发 48 后：1 分钟平均排队数越过 5 → 约 15 秒内 KEDA 把副本改成 2 → 约 1~2 分钟后新副本就绪
+# （第一周冷启动约 70 秒）→ 排队数回落。看板「vLLM 副本数」面板从 1 变 2；回到并发 8 后 5 分钟缩回 1。
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: vllm-queue
+  namespace: infer
+spec:
+  scaleTargetRef:
+    name: vllm
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  pollingInterval: 15
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus.monitoring:9090
+        query: avg_over_time(sum(vllm:num_requests_waiting)[1m:])
+        threshold: "5"
