@@ -18,3 +18,10 @@ def test_engine_pods_disable_service_links():
     assert found, "lessons/ 里没找到跑推理引擎的 Deployment"
     missing = [str(p) for p, doc in found if "enableServiceLinks: false" not in doc]
     assert not missing, f"这些 Deployment 没有关 enableServiceLinks：{missing}"
+
+
+def test_litellm_metrics_scrapable_without_master_key():
+    # LiteLLM v1.102.1 默认给 /metrics 也加鉴权，Prometheus 采集拿到 401，看板面板⑧没有数据。
+    # 不把 master key 交给 Prometheus（那是管理员密钥），而是只对集群内的指标端点关掉鉴权
+    text = (LESSONS / "05-gateway" / "litellm-config.yaml").read_text(encoding="utf-8")
+    assert "require_auth_for_metrics_endpoint: false" in text

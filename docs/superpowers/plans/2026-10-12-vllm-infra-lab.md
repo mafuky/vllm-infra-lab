@@ -554,12 +554,12 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 
 ### Task 12: 第 6 天——第 5 课
 
-- [ ] **Step 1:** 把 `litellm-config.yaml` 的 `timeout` 设为拐点并发下 E2E P95 的 1.5 倍（向上取整到秒），apply `litellm-config.yaml`、`litellm.yaml`。先单发一个请求确认响应头里有 `x-litellm-model-id: self-hosted`；没有的话换用 LiteLLM 当前版本返回的标识字段，同步修改 `backend_from_headers` 及其测试。
-- [ ] **Step 1b（可选，约 5 分钟）:** 核实 `max_parallel_requests` 的行为：在 `qwen3-8b` 组临时加 `max_parallel_requests: 2`，用并发 6 发 12 个请求。没有请求转到 `bailian` 就说明它只让请求排队、不触发 fallback，在第 5 课讲解中写明这个实测结论；然后删掉该配置。
-- [ ] **Step 2:** 超载演示。先用 `--total 20 --concurrency 8` 冒烟一次，确认响应头标识正常；探测请求默认与压测同形状（约 1000 token 输入、256 输出）。如果正式运行后 `bailian` 仍为 0，就先在后台对 vLLM 直接加压（`CONCURRENCIES=128 scripts/bench.sh overload-bg http://vllm.infer:8000 qwen3-8b &`），再经网关探测。正式命令：`kubectl -n infer exec deploy/bench-client -- python3 /lab/scripts/gateway_probe.py --base-url http://litellm.gateway:4000 --model qwen3-8b --total 300 --concurrency <拐点的 2 倍> --out /results/gateway/overload.json`。Expected: 汇总里 `bailian` 计数大于 0。
-- [ ] **Step 3:** 故障演示：`kubectl -n infer scale deploy/vllm --replicas=0` 后用并发 4、共 40 个请求探测（`--out /results/gateway/vllm-down.json`）。Expected: 全部 `bailian`。恢复 replicas=1 并等 Ready 后再测一次（`vllm-back.json`），Expected: 全部 `self-hosted`。
-- [ ] **Step 4:** 看板面板⑧有数据则截图；没有则说明 LiteLLM 指标不可用，删除面板⑧、把 `test_dashboard_identity` 改为 7 个面板并提交。
-- [ ] **Step 5（可砍）:** `.venv/bin/python scripts/cost.py --bench results/bench/baseline/c<拐点>.json --gpu-price <实付单价> --input-price <百炼> --output-price <百炼> > results/cost.md`。
+- [x] **Step 1（2026-10-15 已完成：timeout 11 秒，响应头 x-litellm-model-id: self-hosted）:** 把 `litellm-config.yaml` 的 `timeout` 设为拐点并发下 E2E P95 的 1.5 倍（向上取整到秒），apply `litellm-config.yaml`、`litellm.yaml`。先单发一个请求确认响应头里有 `x-litellm-model-id: self-hosted`；没有的话换用 LiteLLM 当前版本返回的标识字段，同步修改 `backend_from_headers` 及其测试。
+- [ ] **Step 1b（可选，未做：第 1 周已查源码确认是信号量排队）:** 核实 `max_parallel_requests` 的行为：在 `qwen3-8b` 组临时加 `max_parallel_requests: 2`，用并发 6 发 12 个请求。没有请求转到 `bailian` 就说明它只让请求排队、不触发 fallback，在第 5 课讲解中写明这个实测结论；然后删掉该配置。
+- [x] **Step 2（2026-10-15 已完成：300 个请求中 59 个转百炼）:** 超载演示。先用 `--total 20 --concurrency 8` 冒烟一次，确认响应头标识正常；探测请求默认与压测同形状（约 1000 token 输入、256 输出）。如果正式运行后 `bailian` 仍为 0，就先在后台对 vLLM 直接加压（`CONCURRENCIES=128 scripts/bench.sh overload-bg http://vllm.infer:8000 qwen3-8b &`），再经网关探测。正式命令：`kubectl -n infer exec deploy/bench-client -- python3 /lab/scripts/gateway_probe.py --base-url http://litellm.gateway:4000 --model qwen3-8b --total 300 --concurrency <拐点的 2 倍> --out /results/gateway/overload.json`。Expected: 汇总里 `bailian` 计数大于 0。
+- [x] **Step 3（2026-10-15 已完成：下线时 40/40 百炼，恢复后 40/40 自建）:** 故障演示：`kubectl -n infer scale deploy/vllm --replicas=0` 后用并发 4、共 40 个请求探测（`--out /results/gateway/vllm-down.json`）。Expected: 全部 `bailian`。恢复 replicas=1 并等 Ready 后再测一次（`vllm-back.json`），Expected: 全部 `self-hosted`。
+- [x] **Step 4（2026-10-15：LiteLLM /metrics 默认要鉴权，关掉后面板⑧有数据；截图待作者补）:** 看板面板⑧有数据则截图；没有则说明 LiteLLM 指标不可用，删除面板⑧、把 `test_dashboard_identity` 改为 7 个面板并提交。
+- [x] **Step 5（2026-10-15 已完成，盈亏平衡约每天 5 万请求）:** `.venv/bin/python scripts/cost.py --bench results/bench/baseline/c<拐点>.json --gpu-price <实付单价> --input-price <百炼> --output-price <百炼> > results/cost.md`。
 
 ### Task 13: 第 7 天——整理结果
 
