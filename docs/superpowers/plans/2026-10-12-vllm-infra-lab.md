@@ -547,10 +547,10 @@ git add -A && git commit -m "feat: 第 5 课 网关、探测脚本和成本计�
 
 ### Task 11: 第 5 天——第 4 课
 
-- [ ] **Step 1:** apply `bench-client.yaml`；跑基线 `scripts/bench.sh baseline http://vllm.infer:8000 qwen3-8b`。压到 32、64 并发时，在 Prometheus 告警页截图三条告警进入 firing。
-- [ ] **Step 2:** 依次修改 Deployment 参数后各跑一轮：`full48g`（`--gpu-memory-utilization 0.90`，不限显存的对照，`CONCURRENCIES="1 4 16 32 64 128"`，看 KV Cache 容量翻倍后拐点后移多少）；`util040`（`--gpu-memory-utilization 0.40`）；`seqs16`、`seqs32`、`seqs64`（`--max-num-seqs`）；`prefix-on` 与 `prefix-off`（加 `--no-enable-prefix-caching`），这两轮都用 `--random-prefix-len 512 --random-input-len 512`。
-- [ ] **Step 3（可砍）:** apply `vllm-qwen3-8b-awq.yaml`，label `awq` 跑一轮；结束后换回 BF16。
-- [ ] **Step 4:** Mac 上 `rsync` 结果，执行 `.venv/bin/python scripts/plot.py results/bench results/charts > results/bench/summary.md`。根据曲线定出拐点并发（TTFT P95 开始陡增前的最后一档），写入 `results/bench/knee.md`，附拐点那一档的 E2E P95。
+- [x] **Step 1（2026-10-15 已完成；告警页实时截图没赶上，改用 Prometheus ALERTS 时间线 results/03-monitoring/alerts-day5.txt）:** apply `bench-client.yaml`；跑基线 `scripts/bench.sh baseline http://vllm.infer:8000 qwen3-8b`。压到 32、64 并发时，在 Prometheus 告警页截图三条告警进入 firing。
+- [x] **Step 2（2026-10-15 已完成，8 轮全部 0 失败）:** 依次修改 Deployment 参数后各跑一轮：`full48g`（`--gpu-memory-utilization 0.90`，不限显存的对照，`CONCURRENCIES="1 4 16 32 64 128"`，看 KV Cache 容量翻倍后拐点后移多少）；`util040`（`--gpu-memory-utilization 0.40`）；`seqs16`、`seqs32`、`seqs64`（`--max-num-seqs`）；`prefix-on` 与 `prefix-off`（加 `--no-enable-prefix-caching`），这两轮都用 `--random-prefix-len 512 --random-input-len 512`。
+- [x] **Step 3（2026-10-15 已完成）:** apply `vllm-qwen3-8b-awq.yaml`，label `awq` 跑一轮；结束后换回 BF16。
+- [x] **Step 4（2026-10-15 已完成：拐点并发 16，E2E P95 7.1 秒，见 results/bench/knee.md）:** Mac 上 `rsync` 结果，执行 `.venv/bin/python scripts/plot.py results/bench results/charts > results/bench/summary.md`。根据曲线定出拐点并发（TTFT P95 开始陡增前的最后一档），写入 `results/bench/knee.md`，附拐点那一档的 E2E P95。
 
 ### Task 12: 第 6 天——第 5 课
 

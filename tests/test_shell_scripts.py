@@ -1,3 +1,4 @@
+import re
 import os
 import stat
 import subprocess
@@ -132,3 +133,9 @@ def test_create_secrets_creates_both_when_complete(tmp_path):
     r, calls = _run_create_secrets(tmp_path, "GRAFANA_ADMIN_PASSWORD=pw\nLITELLM_MASTER_KEY=sk-x\nDASHSCOPE_API_KEY=sk-y\n")
     assert r.returncode == 0, r.stderr
     assert "grafana-admin" in calls and "litellm-secrets" in calls
+
+
+def test_bench_uses_distinct_seed_per_concurrency():
+    # 不传 --seed 时每档并发生成同一批「随机」提示词，开着前缀缓存会跨档命中，低并发的 TTFT 被低估
+    text = (SCRIPTS / "bench.sh").read_text(encoding="utf-8")
+    assert re.search(r'--seed "\$\(\(\s*\w+\s*\+\s*c\s*\)\)"', text), "bench.sh 要按并发档位传不同的 --seed"
