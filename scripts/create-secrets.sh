@@ -30,16 +30,21 @@ require() {
 }
 
 grafana_pw="$(require GRAFANA_ADMIN_PASSWORD)"
-dashscope="$(require DASHSCOPE_API_KEY)"
-master="$(require LITELLM_MASTER_KEY)"
 
 kubectl -n monitoring create secret generic grafana-admin \
   --from-literal=admin-password="$grafana_pw" \
   --dry-run=client -o yaml | kubectl apply -f -
+echo "✅ 已创建 monitoring/grafana-admin"
 
+# 网关第 6 天才用；百炼 key 还没填时先跳过，第 4 天只需要 Grafana 密码
+dashscope="$(env_value DASHSCOPE_API_KEY)"
+master="$(env_value LITELLM_MASTER_KEY)"
+if [ -z "$dashscope" ] || [ -z "$master" ]; then
+  echo "⚠️  .env 里 DASHSCOPE_API_KEY 或 LITELLM_MASTER_KEY 为空，跳过 gateway/litellm-secrets（第 6 天前填好再跑一次）"
+  exit 0
+fi
 kubectl -n gateway create secret generic litellm-secrets \
   --from-literal=DASHSCOPE_API_KEY="$dashscope" \
   --from-literal=LITELLM_MASTER_KEY="$master" \
   --dry-run=client -o yaml | kubectl apply -f -
-
-echo "✅ 已创建 monitoring/grafana-admin、gateway/litellm-secrets"
+echo "✅ 已创建 gateway/litellm-secrets"

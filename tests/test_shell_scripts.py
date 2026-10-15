@@ -96,3 +96,39 @@ def test_gpu_detected_by_pci_vendor(tmp_path):
 def test_no_gpu_in_cardless_mode(tmp_path):
     # 无卡模式开机时虚机上只剩 virtio 等设备
     assert _has_nvidia_gpu(tmp_path, ["0x1af4", "0x8086"]).returncode != 0
+
+
+def _run_create_secrets(tmp_path, env_text):
+    # 脚本会 cd 到自己上一级目录读 .env，所以复制到临时目录里跑，不碰仓库里真正的 .env
+    (tmp_path / "scripts").mkdir()
+    script = tmp_path / "scripts" / "create-secrets.sh"
+    script.write_text((SCRIPTS / "create-secrets.sh").read_text(encoding="utf-8"))
+    (tmp_path / ".env").write_text(env_text)
+    log = tmp_path / "kubectl.log"
+    fakes = tmp_path / "bin"
+    fakes.mkdir()
+    _fake_bin(fakes, "kubectl", f'echo "$@" >> "{log}"; [ "$1" = apply ] && cat >/dev/null; true')
+    env = dict(os.environ, PATH=f"{fakes}:{os.environ['PATH']}", KUBECONFIG="/dev/null")
+    r = subprocess.run(["bash", str(script)], capture_output=True, text=True, env=env)
+    return r, (log.read_text() if log.exists() else "")
+
+
+def test_create_secrets_skips_gateway_without_dashscope_key(tmp_path):
+    # 第 4 天只需要 Grafana 密码，百炼的 key 第 6 天才用得上
+    r, calls = _run_create_secrets(tmp_path, "GRAFANA_ADMIN_PASSWORD=pw\nLITELLM_MASTER_KEY=\nDASHSCOPE_API_KEY=\n")
+    assert r.returncode == 0, r.stderr
+    assert "grafana-admin" in calls
+    assert "litellm-secrets" not in calls
+    assert "DASHSCOPE_API_KEY" in r.stdout + r.stderr
+
+
+def test_create_secrets_requires_grafana_password(tmp_path):
+    r, calls = _run_create_secrets(tmp_path, "GRAFANA_ADMIN_PASSWORD=\n")
+    assert r.returncode != 0
+    assert "grafana-admin" not in calls
+
+
+def test_create_secrets_creates_both_when_complete(tmp_path):
+    r, calls = _run_create_secrets(tmp_path, "GRAFANA_ADMIN_PASSWORD=pw\nLITELLM_MASTER_KEY=sk-x\nDASHSCOPE_API_KEY=sk-y\n")
+    assert r.returncode == 0, r.stderr
+    assert "grafana-admin" in calls and "litellm-secrets" in calls

@@ -76,6 +76,9 @@ spec:
         prometheus.io/port: "8000"
         prometheus.io/path: /metrics
     spec:
+      # Service 叫 vllm，K8s 会给 Pod 注入 VLLM_PORT=tcp://IP:8000，和 vLLM 自己读的 VLLM_PORT 撞名，
+      # 引擎启动时报 VLLM_PORT appears to be a URI 退出。集群内用 DNS 访问服务，这些变量用不上，直接关掉
+      enableServiceLinks: false
       runtimeClassName: nvidia
       containers:
         - name: vllm
