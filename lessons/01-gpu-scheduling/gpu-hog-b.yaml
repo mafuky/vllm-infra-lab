@@ -1,0 +1,32 @@
+# 第 1 课 · 第二个申请者
+#
+# ── 应该看到什么 ──────────────────────────────────────────────
+#
+# 在 gpu-hog-a 还活着的时候 apply 这个 Pod，它会一直停在 Pending：
+#
+#   kubectl -n infer describe pod gpu-hog-b
+#   Events:  0/1 nodes are available: 1 Insufficient nvidia.com/gpu.
+#
+# ── 为什么 ────────────────────────────────────────────────────
+#
+# 调度分两步：先过滤（Filter）掉放不下的节点，再给剩下的打分（Score）。
+# nvidia.com/gpu 是扩展资源，只能按整数申请，request 必须等于 limit，也不能超卖，
+# 节点上唯一的 1 个已经记在 gpu-hog-a 名下，过滤阶段这个节点就被排除了，于是无处可去。
+# CPU 可以按 0.5 核申请、可以超卖，GPU 不行，这是两者在调度上最大的区别。
+#
+# 删掉 gpu-hog-a 后几秒钟，gpu-hog-b 就会被调度并 Running。
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gpu-hog-b
+  namespace: infer
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+  containers:
+    - name: hog
+      image: nvidia/cuda:12.4.1-base-ubuntu22.04
+      command: ["sh", "-c", "nvidia-smi -L && sleep infinity"]
+      resources:
+        limits:
+          nvidia.com/gpu: 1

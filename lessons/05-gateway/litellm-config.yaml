@@ -1,0 +1,84 @@
+# 第 5 课 · 扛不住的时候怎么办
+#
+# 60 分钟。
+#
+# ── 你在做什么 ────────────────────────────────────────────────
+#
+# 自建的 vLLM 只有一张卡，流量突增或者 Pod 挂掉时总得有个兜底。
+# 业务方统一调 LiteLLM 网关，模型名写 qwen3-8b：平时由自建 vLLM 处理，
+# 自建这边超时或报错时，网关自动把请求转给百炼的 qwen3.8-flash，业务方完全无感。
+#
+# ── 切换是怎么触发的 ──────────────────────────────────────────
+#
+# 直觉上会想「给 vLLM 设个并发上限，超过就转走」。但 LiteLLM 的 max_parallel_requests
+# 是用 asyncio.Semaphore 实现的（v1.102.1 的 router.py），超出上限的请求只会在网关里排队等，
+# 不会报错，也就不会触发 fallback。
+#
+# 真正能触发切换的是「失败」：vLLM 过载时不拒绝请求，而是让它们排队；排得太久，
+# 请求超过 timeout，LiteLLM 把超时当失败，转给 fallback。所以 timeout 就是切换阈值：
+#   设太小：自建明明还扛得住，请求就被转走了，钱白花；
+#   设太大：用户已经等了很久才切走，体验差。
+# 第 4 课测出拐点后，把 timeout 设成拐点并发下 E2E P95 的 1.5 倍（向上取整到秒）。
+# 2026-10-15 实测：拐点并发 16，E2E P95 7,122ms（results/bench/knee.md），× 1.5 ≈ 10.7，取 11 秒。
+#
+# num_retries: 0：失败后不在 vLLM 上重试，直接切。在过载的 vLLM 上重试只会让它更堵。
+#
+# ── 怎么执行 ──────────────────────────────────────────────────
+#
+#   kubectl apply -f lessons/05-gateway/litellm-config.yaml
+#   kubectl apply -f lessons/05-gateway/litellm.yaml
+#
+# 两个演示（命令见 scripts/gateway_probe.py）：
+#   超载：并发开到拐点的 2 倍，汇总里 bailian 的计数大于 0
+#   故障：kubectl -n infer scale deploy/vllm --replicas=0，所有请求都变成 bailian；恢复后回到 self-hosted
+#
+# ── 应该看到什么 ──────────────────────────────────────────────
+#
+# 每个响应头里都有 x-litellm-model-id，值是下面 model_info.id 里的 self-hosted 或 bailian。
+# 为什么降级目标是 qwen3.8-flash：百炼已经不再提供 qwen3-8b（2026-10-13 查控制台和官方模型列表确认），
+# 小参数的开源型号也都下线了。qwen3.8-flash 是百炼最便宜的通用文本模型（北京地域每百万 token 输入 0.8 元、
+# 输出 2.7 元，思考和非思考同价），也是业务上真实会选的「云端便宜档」。
+# 代价是两边不是同一个模型：flash 的效果通常比自建的 8B 好，成本对比时要在结果里注明这一点。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+  namespace: gateway
+data:
+  config.yaml: |
+    model_list:
+      - model_name: qwen3-8b
+        litellm_params:
+          model: hosted_vllm/qwen3-8b
+          api_base: http://vllm.infer:8000/v1
+          timeout: 11
+          extra_body:
+            chat_template_kwargs:
+              enable_thinking: false
+        model_info:
+          id: self-hosted
+
+      - model_name: bailian-flash
+        litellm_params:
+          model: openai/qwen3.8-flash
+          api_base: https://dashscope.aliyuncs.com/compatible-mode/v1
+          api_key: os.environ/DASHSCOPE_API_KEY
+          extra_body:
+            enable_thinking: false
+        model_info:
+          id: bailian
+
+    router_settings:
+      fallbacks:
+        - qwen3-8b: ["bailian-flash"]
+      num_retries: 0
+
+    litellm_settings:
+      # 暴露 /metrics，第 3 课看板的「各后端承接的请求数」面板读它
+      callbacks: ["prometheus"]
+      # v1.102.1 默认 /metrics 也要 master key，Prometheus 采集拿到 401。
+      # master key 是管理员密钥，不交给 Prometheus；指标只在集群内可达，对它单独关掉鉴权
+      require_auth_for_metrics_endpoint: false
+
+    general_settings:
+      master_key: os.environ/LITELLM_MASTER_KEY

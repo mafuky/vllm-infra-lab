@@ -1,0 +1,18 @@
+## kubectl get pods
+NAME        READY   STATUS    RESTARTS   AGE   IP          NODE            NOMINATED NODE   READINESS GATES
+gpu-hog-a   1/1     Running   0          14m   10.42.0.6   10-60-147-105   <none>           <none>
+gpu-hog-b   0/1     Pending   0          14m   <none>      <none>          <none>           <none>
+
+## gpu-hog-a logs
+GPU 0: NVIDIA GeForce RTX 4090 (UUID: GPU-f7f952fe-9d47-cdac-a0f1-76f27ac807fd)
+
+## kubectl describe pod gpu-hog-b
+    Limits:
+      nvidia.com/gpu:  1
+    Requests:
+Events:
+  Type     Reason            Age                    From               Message
+  ----     ------            ----                   ----               -------
+  Warning  FailedScheduling  14m                    default-scheduler  0/1 nodes are available: 1 Insufficient nvidia.com/gpu. no new claims to deallocate, preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.
+  Warning  FailedScheduling  4m39s (x2 over 9m39s)  default-scheduler  0/1 nodes are available: 1 Insufficient nvidia.com/gpu. no new claims to deallocate, preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.
+  Warning  FailedScheduling  3m5s                   default-scheduler  0/1 nodes are available: 1 Insufficient nvidia.com/gpu. no new claims to deallocate, preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.

@@ -1,0 +1,14 @@
+{
+  "backend": "openai",
+  "model_id": "qwen3-8b",
+  "max_concurrency": 1,
+  "num_prompts": 50,
+  "completed": 50,
+  "request_throughput": 0.21,
+  "output_throughput": 54.3,
+  "median_ttft_ms": 62.0,
+  "p50_ttft_ms": 62.0,
+  "p95_ttft_ms": 75.5,
+  "p95_itl_ms": 18.9,
+  "p95_e2el_ms": 4900.0
+}

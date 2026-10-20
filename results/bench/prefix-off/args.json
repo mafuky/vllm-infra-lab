@@ -1,0 +1,1 @@
+["/models/Qwen3-8B","--served-model-name","qwen3-8b","--max-model-len","8192","--gpu-memory-utilization","0.45","--no-enable-prefix-caching","--port","8000"]

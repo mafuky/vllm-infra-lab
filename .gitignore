@@ -1,0 +1,7 @@
+.env
+.venv/
+*.secret.yaml
+__pycache__/
+.pytest_cache/
+.superpowers/
+docs/superpowers/

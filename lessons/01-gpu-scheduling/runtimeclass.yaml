@@ -1,0 +1,12 @@
+# 第 1 课 · RuntimeClass nvidia
+#
+# k3s 启动时如果检测到 nvidia-container-runtime，会自动在 containerd 里注册一个名为 nvidia 的运行时，
+# 新版本通常也会自动创建同名 RuntimeClass。这里再 apply 一次，确保它一定存在；已存在时没有副作用。
+#
+# 所有要用 GPU 的 Pod 都写 runtimeClassName: nvidia。不写的话容器里没有驱动库，
+# nvidia-smi 找不到，设备插件也会报 NVML 初始化失败。
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: nvidia
+handler: nvidia

@@ -1,0 +1,55 @@
+# 第 3 课 · GPU 自己的指标
+#
+# vLLM 的指标告诉你「服务」怎么样，DCGM Exporter 告诉你「卡」怎么样：
+# 利用率（DCGM_FI_DEV_GPU_UTIL）、显存占用（DCGM_FI_DEV_FB_USED）、温度、功耗。
+#
+# DCGM_EXPORTER_KUBERNETES=true 加上挂载 kubelet 的 pod-resources，
+# 它能查到「哪张卡分给了哪个 Pod」，给指标打上 pod、namespace 标签。
+# 但 time-slicing 下两个 Pod 共用同一个物理设备，这个对应关系就失效了：
+# 利用率只能看整张卡，拆不到每个 Pod。这是 time-slicing 在可观测性上的代价。
+#
+# 跟设备插件一样要设 runtimeClassName: nvidia，否则容器里加载不到驱动库。
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: dcgm-exporter
+  namespace: gpu
+spec:
+  selector:
+    matchLabels:
+      app: dcgm-exporter
+  template:
+    metadata:
+      labels:
+        app: dcgm-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9400"
+        prometheus.io/path: /metrics
+    spec:
+      runtimeClassName: nvidia
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: dcgm-exporter
+          image: nvcr.io/nvidia/k8s/dcgm-exporter:4.4.2-4.7.1-ubuntu22.04
+          env:
+            - name: DCGM_EXPORTER_KUBERNETES
+              value: "true"
+            - name: DCGM_EXPORTER_LISTEN
+              value: ":9400"
+          ports:
+            - containerPort: 9400
+          securityContext:
+            capabilities:
+              add: ["SYS_ADMIN"]
+          volumeMounts:
+            - name: pod-resources
+              mountPath: /var/lib/kubelet/pod-resources
+              readOnly: true
+      volumes:
+        - name: pod-resources
+          hostPath:
+            path: /var/lib/kubelet/pod-resources

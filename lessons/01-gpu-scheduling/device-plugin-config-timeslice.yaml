@@ -1,0 +1,19 @@
+# 设备插件配置 · time-slicing（时间片共享）
+#
+# 一张物理卡向 K8s 报成 2 个 nvidia.com/gpu。两个 Pod 各申请 1 个，就会落在同一张卡上轮流用。
+# 注意：这只是在调度层面「多报」了资源，显存和故障并不隔离，见 timeslice-vllm.yaml 的讲解。
+#
+# 切换后执行：kubectl -n gpu rollout restart ds/nvidia-device-plugin
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nvidia-device-plugin-config
+  namespace: gpu
+data:
+  config.yaml: |
+    version: v1
+    sharing:
+      timeSlicing:
+        resources:
+          - name: nvidia.com/gpu
+            replicas: 2

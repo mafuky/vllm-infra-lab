@@ -1,0 +1,13 @@
+# 设备插件配置 · 独占模式（默认）
+#
+# 一张物理卡就是一个 nvidia.com/gpu，谁申请到谁独占。
+# 与 device-plugin-config-timeslice.yaml 同名，二选一 apply，然后：
+#   kubectl -n gpu rollout restart ds/nvidia-device-plugin
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nvidia-device-plugin-config
+  namespace: gpu
+data:
+  config.yaml: |
+    version: v1
