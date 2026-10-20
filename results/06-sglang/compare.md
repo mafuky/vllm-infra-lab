@@ -15,6 +15,6 @@ KV Cache 容量：**vLLM 30,352 token / SGLang 32,116 token（+5.8%）**，见 `
 
 - **吞吐基本相同**：各档差距在 2.5% 以内，SGLang 在并发 32、64 略高（KV 多 5.8% 也有贡献）。
 - **首字延迟 vLLM 更好**：并发 16 时 TTFT P50 585 vs 1,143ms、P95 947 vs 1,649ms；并发 32 时 P95 7.7 vs 9.5 秒。
-- **逐字延迟 SGLang 更稳**：并发 32、64 时 ITL P95 约 24ms，vLLM 为 76~78ms。
+- **逐字延迟 SGLang 更稳**：并发 32、64 时 ITL P95 约 24ms，vLLM 为 76~78ms。2026-10-21 用逐 token 原始数据复测确认不是 P95 的错觉：P99 为 33~34ms vs 217~230ms，超过 50ms 的 token 占 0.6%~0.8% vs 5.5%（`../itl/summary.md`）。
 - 推测（待源码笔记核实）：SGLang 的日志里 prefill 和 decode 是分开的批次（`Prefill batch` / `Decode batch`），新请求的 prefill 不插进正在生成的批次，逐字稳定但新请求要等；vLLM 把新请求的 prefill 分块混进 decode 步，首字更快，但正在生成的请求被拖慢。这也对应 `../bench/knee.md` 待查问题 2（vLLM 设 `--max-num-seqs 32/64` 后 ITL P95 也降到约 24ms）。
 - 选型：在意首字的聊天类产品偏向 vLLM；长输出、在意流式输出流畅度的场景 SGLang 更稳。Agent 场景以 prefill 为主，看第 10 天的 Agent 负载结果。
