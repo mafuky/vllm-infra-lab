@@ -5,3 +5,4 @@ __pycache__/
 .pytest_cache/
 .superpowers/
 docs/superpowers/
+CLAUDE.local.md
